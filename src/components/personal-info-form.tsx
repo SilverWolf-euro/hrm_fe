@@ -37,6 +37,7 @@ export function PersonalInfoForm({ profile, isNew = false }: PersonalInfoFormPro
         full_name: fullName,
         gender,
         id_number: idNumber,
+        citizen_id_number: citizenIdNumber,
         issue_place: issuePlace,
         birth_place: birthPlace,
         home_town: homeTown,
@@ -111,6 +112,7 @@ export function PersonalInfoForm({ profile, isNew = false }: PersonalInfoFormPro
       setFullName(profile.full_name || "");
       setGender(profile.gender || "");
       setIdNumber(profile.id_number || "");
+      setCitizenIdNumber(profile.citizen_id_number || "");
       setBirthPlace(profile.birth_place || "");
       setHomeTown(profile.home_town || "");
       setPermanentAddress(profile.permanent_address || "");
@@ -157,6 +159,7 @@ export function PersonalInfoForm({ profile, isNew = false }: PersonalInfoFormPro
       setFullName(profile.full_name || "");
       setGender(profile.gender || "");
       setIdNumber(profile.id_number || "");
+      setCitizenIdNumber(profile.citizen_id_number || "");
       setBirthPlace(profile.birth_place || "");
       setHomeTown(profile.home_town || "");
       setPermanentAddress(profile.permanent_address || "");
@@ -227,6 +230,7 @@ export function PersonalInfoForm({ profile, isNew = false }: PersonalInfoFormPro
   const [fullName, setFullName] = useState(profile?.full_name || "");
   const [gender, setGender] = useState(profile?.gender || "");
   const [idNumber, setIdNumber] = useState(profile?.id_number || "");
+  const [citizenIdNumber, setCitizenIdNumber] = useState(profile?.citizen_id_number || "");
   const [birthPlace, setBirthPlace] = useState(profile?.birth_place || "");
   const [homeTown, setHomeTown] = useState(profile?.home_town || "");
   const [permanentAddress, setPermanentAddress] = useState(profile?.permanent_address || "");
@@ -1259,14 +1263,14 @@ const handleCertSubmit = async (e: React.FormEvent) => {
 
           {/* Số CCCD/CMND */}
           <div className="space-y-2">
-            <label htmlFor="idNumber" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="citizenIdNumber" className="block text-sm font-medium text-gray-700">
               Số CCCD/CMND<span className="text-red-500">*</span>
             </label>
             <input
-              id="idNumber"
+              id="citizenIdNumber"
               type="text"
-              value={idNumber}
-              onChange={e => setIdNumber(e.target.value)}
+              value={citizenIdNumber}
+              onChange={e => setCitizenIdNumber(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
@@ -2371,7 +2375,7 @@ const handleCertSubmit = async (e: React.FormEvent) => {
                 </div>
                 <div className="mb-3">
                   <label className="block text-sm font-medium mb-1">Số CCCD/Mã định danh<span className="text-red-500">*</span></label>
-                  <input name="idNumber" type="text" value={dependentForm.idNumber} onChange={handleDependentInputChange} className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${dependentFormTouched.idNumber && !dependentForm.idNumber ? 'border-red-500' : 'border-gray-300'}`} required />
+                  <input name="" type="text" value={dependentForm.idNumber} onChange={handleDependentInputChange} className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${dependentFormTouched.idNumber && !dependentForm.idNumber ? 'border-red-500' : 'border-gray-300'}`} required />
                 </div>
                 <div className="mb-3">
                   <label className="block text-sm font-medium mb-1">Mối quan hệ<span className="text-red-500">*</span></label>

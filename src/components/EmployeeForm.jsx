@@ -6,6 +6,7 @@ const initialEmployee = {
   full_name: "",
   gender: "",
   id_number: "",
+  citizen_id_number:"",
   issue_place: "",
   birth_place: "",
   home_town: "",
@@ -140,7 +141,7 @@ function EmployeeForm() {
             </div>
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">Số CMND/CCCD</label>
-              <input name="id_number" value={employee.id_number} onChange={handleChange}
+              <input name="citizen_id_number" value={employee.citizen_id_number} onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md" />
             </div>
             <div className="space-y-2">
