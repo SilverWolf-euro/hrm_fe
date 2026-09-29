@@ -1,5 +1,20 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import employeeService from "../services/employeeService";
+
+// Combobox lấy dữ liệu từ API /employee/filter; giữ lại giá trị cũ nếu không có trong danh sách
+function FilterSelect({ name, value, options, onChange }) {
+  const hasValue = !value || options.some(o => String(o.value) === String(value));
+  return (
+    <select name={name} value={value} onChange={onChange}
+      className="w-full px-3 py-2 border border-gray-300 rounded-md">
+      <option value="">--Chọn--</option>
+      {!hasValue && <option value={value}>{value}</option>}
+      {options.map(o => (
+        <option key={`${o.filter}-${o.value}`} value={o.value}>{o.label}</option>
+      ))}
+    </select>
+  );
+}
 
 const initialEmployee = {
   id: "",
@@ -58,6 +73,14 @@ function EmployeeForm() {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [filterOptions, setFilterOptions] = useState([]);
+
+  useEffect(() => {
+    employeeService.getFilter()
+      .then(data => setFilterOptions(Array.isArray(data) ? data : []))
+      .catch(err => console.error("Lỗi lấy dữ liệu filter:", err));
+  }, []);
+  const getOptions = (filter) => filterOptions.filter(o => o.filter === filter);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -129,9 +152,9 @@ function EmployeeForm() {
               <select name="gender" value={employee.gender} onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md">
                 <option value="">--Chọn--</option>
-                <option value="Male">Nam</option>
-                <option value="Female">Nữ</option>
-                <option value="Other">Khác</option>
+                <option value="M">Nam</option>
+                <option value="F">Nữ</option>
+                <option value="O">Khác</option>
               </select>
             </div>
             <div className="space-y-2">
@@ -258,13 +281,13 @@ function EmployeeForm() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">Chức danh</label>
-              <input name="position_title" value={employee.position_title} onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+              <FilterSelect name="position_title" value={employee.position_title}
+                options={getOptions("POSITION")} onChange={handleChange} />
             </div>
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">Phòng ban</label>
-              <input name="department_name" value={employee.department_name} onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+              <FilterSelect name="department_name" value={employee.department_name}
+                options={getOptions("DEPARTMENT")} onChange={handleChange} />
             </div>
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">Bậc</label>
@@ -273,8 +296,8 @@ function EmployeeForm() {
             </div>
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">Nơi làm việc</label>
-              <input name="work_location" value={employee.work_location} onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+              <FilterSelect name="work_location" value={employee.work_location}
+                options={getOptions("WORK_LOCATION")} onChange={handleChange} />
             </div>
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">Trưởng nhóm</label>

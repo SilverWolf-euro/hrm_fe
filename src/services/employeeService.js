@@ -162,8 +162,26 @@ function downloadAttendanceByMonthYear(month, year, work_location) {
   }).then(res => res.data);
 }
 
+// Lấy danh sách giá trị cho các combobox (POSITION, DEPARTMENT, WORK_LOCATION, EMPLOYEE_CONTRACT, SALARY, ALLOWANCE)
+// Trả về mảng [{ value, label, filter }]
+// Cache promise để chỉ gọi API 1 lần cho mọi component (kể cả khi remount / StrictMode)
+let filterPromise = null;
+function getFilter({ force = false } = {}) {
+  if (!filterPromise || force) {
+    filterPromise = api.get('/api/v1/employee/filter')
+      .then(res => res.data)
+      .catch(err => {
+        // Lỗi thì xóa cache để lần sau gọi lại
+        filterPromise = null;
+        throw err;
+      });
+  }
+  return filterPromise;
+}
+
 const employeeService = {
   getList,
+  getFilter,
   getDetail,
   getRelatives,
   getEmergencyContacts,

@@ -7,9 +7,50 @@ import dayjs from "dayjs";
 type PersonalInfoFormProps = {
   profile?: any;
   isNew?: boolean;
+  // Gọi sau khi insert/update thành công (id trả về từ API) để trang cha load lại chi tiết
+  onSaved?: (id?: string) => void;
 };
 
-export function PersonalInfoForm({ profile, isNew = false }: PersonalInfoFormProps) {
+// Dữ liệu combobox lấy từ API /employee/filter
+type FilterOption = {
+  value: string;
+  label: string;
+  filter: string;
+};
+
+// Giá trị đại diện cho lựa chọn "Khác" (cho phép nhập text)
+const OTHER_VALUE = "__OTHER__";
+const isOtherLabel = (label: string) => (label || "").trim().toLowerCase() === "khác";
+
+// Danh sách option có kèm lựa chọn "Khác" (dùng giá trị OTHER_VALUE, thêm vào cuối nếu API chưa có)
+const withOtherOption = (options: FilterOption[], filter: string): FilterOption[] => {
+  const normal = options.filter(o => !isOtherLabel(o.label));
+  return [...normal, { value: OTHER_VALUE, label: "Khác", filter }];
+};
+
+type FilterSelectProps = {
+  id?: string;
+  value: string;
+  options: FilterOption[];
+  onChange: (value: string) => void;
+  className?: string;
+};
+
+// Combobox dùng chung; nếu giá trị hiện tại không có trong danh sách thì vẫn hiển thị để không mất dữ liệu cũ
+function FilterSelect({ id, value, options, onChange, className }: FilterSelectProps) {
+  const hasValue = !value || options.some(o => String(o.value) === String(value));
+  return (
+    <select id={id} value={value} onChange={e => onChange(e.target.value)} className={className}>
+      <option value="">--Chọn--</option>
+      {!hasValue && <option value={value}>{value}</option>}
+      {options.map(o => (
+        <option key={`${o.filter}-${o.value}`} value={o.value}>{o.label}</option>
+      ))}
+    </select>
+  );
+}
+
+export function PersonalInfoForm({ profile, isNew = false, onSaved }: PersonalInfoFormProps) {
   // State để ẩn/hiện bảng thành phần gia đình
   const [showFamilyTable, setShowFamilyTable] = useState(false);
   // Thêm state để ẩn/hiện bảng chứng chỉ
@@ -22,6 +63,23 @@ export function PersonalInfoForm({ profile, isNew = false }: PersonalInfoFormPro
   // Thêm ref cho input file
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
+
+  // Dữ liệu combobox từ API /employee/filter
+  const [filterOptions, setFilterOptions] = useState<FilterOption[]>([]);
+  useEffect(() => {
+    employeeService.getFilter()
+      .then((data: FilterOption[]) => setFilterOptions(Array.isArray(data) ? data : []))
+      .catch((err: any) => console.error("Lỗi lấy dữ liệu filter:", err));
+  }, []);
+  const getOptions = (filter: string) => filterOptions.filter(o => o.filter === filter);
+  const salaryOptions = withOtherOption(getOptions("SALARY"), "SALARY");
+  const allowanceOptions = withOtherOption(getOptions("ALLOWANCE"), "ALLOWANCE");
+
+  // Loại hợp đồng lao động
+  const [contractType, setContractType] = useState("");
+  // Trạng thái chọn "Khác" cho Mức lương / Phụ cấp
+  const [salaryTypeOther, setSalaryTypeOther] = useState(false);
+  const [allowanceContentOther, setAllowanceContentOther] = useState(false);
 
   // Hàm handle update/insert nhân viên
   const handleUpdateEmployee = async () => {
@@ -57,6 +115,24 @@ export function PersonalInfoForm({ profile, isNew = false }: PersonalInfoFormPro
         department_name: departmentName,
         rank,
         work_location: workLocation,
+        // Loại hợp đồng lao động: value từ combobox EMPLOYEE_CONTRACT
+        employment_type: contractType,
+        // Mức lương: type = label đã chọn hoặc text nhập khi chọn "Khác"
+        salaries: salaries.map(s => ({
+          id: s.id ?? null,
+          type: s.type,
+          amount_old: Number(s.amount_old) || 0,
+          amount_new: Number(s.amount_new) || 0,
+          start_date: s.start_date ? new Date(s.start_date + 'T00:00:00Z').toISOString() : null,
+        })),
+        // Nội dung/loại phụ cấp: content = label đã chọn hoặc text nhập khi chọn "Khác"
+        allowances: allowances.map(a => ({
+          id: a.id ?? null,
+          content: a.content,
+          amount: Number(a.amount) || 0,
+          currency: a.currency,
+          date: a.date ? new Date(a.date + 'T00:00:00Z').toISOString() : null,
+        })),
         leader,
         manager_id: managerId,
         social_insurance_no: socialInsuranceNo,
@@ -84,8 +160,9 @@ export function PersonalInfoForm({ profile, isNew = false }: PersonalInfoFormPro
         updated_at: new Date().toISOString(),
       };
 
-      await employeeService.upsertEmployee({ file, employee });
+      const res = await employeeService.upsertEmployee({ file, employee });
       alert(isNew ? "Tạo nhân viên thành công!" : "Cập nhật thông tin nhân viên thành công!");
+      onSaved?.(res?.id || profile?.id);
     } catch (err: any) {
       let message = isNew ? "Có lỗi khi tạo nhân viên!" : "Có lỗi khi cập nhật thông tin nhân viên!";
       if (err?.response) {
@@ -113,6 +190,7 @@ export function PersonalInfoForm({ profile, isNew = false }: PersonalInfoFormPro
       setGender(profile.gender || "");
       setIdNumber(profile.id_number || "");
       setCitizenIdNumber(profile.citizen_id_number || "");
+      setContractType(profile.employment_type || "");
       setBirthPlace(profile.birth_place || "");
       setHomeTown(profile.home_town || "");
       setPermanentAddress(profile.permanent_address || "");
@@ -160,6 +238,7 @@ export function PersonalInfoForm({ profile, isNew = false }: PersonalInfoFormPro
       setGender(profile.gender || "");
       setIdNumber(profile.id_number || "");
       setCitizenIdNumber(profile.citizen_id_number || "");
+      setContractType(profile.employment_type || "");
       setBirthPlace(profile.birth_place || "");
       setHomeTown(profile.home_town || "");
       setPermanentAddress(profile.permanent_address || "");
@@ -689,8 +768,16 @@ useEffect(() => {
   setSalaryForm((prev) => ({ ...prev, [name]: value }));
   setSalaryFormTouched((prev) => ({ ...prev, [name]: true }));
 };
+  // Chọn loại lương từ combobox; chọn "Khác" thì để trống cho người dùng tự nhập
+  const handleSalaryTypeSelect = (value: string) => {
+    const isOther = value === OTHER_VALUE;
+    setSalaryTypeOther(isOther);
+    setSalaryForm((prev) => ({ ...prev, type: isOther ? "" : value }));
+    setSalaryFormTouched((prev) => ({ ...prev, type: true }));
+  };
   const handleAddSalary = () => {
     setSalaryForm({id: null, type:"", amount_old:"", amount_new:"", start_date:""});
+    setSalaryTypeOther(false);
     setSalaryFormTouched({});
     setEditingSalaryIndex(null);
     setShowSalaryModal(true);
@@ -726,6 +813,8 @@ useEffect(() => {
     amount_new: s.amount_new !== undefined && s.amount_new !== null ? String(s.amount_new) : "",
     start_date: s.start_date || "",
   });
+  // Loại lương không có trong danh sách -> hiển thị là "Khác" kèm ô nhập text
+  setSalaryTypeOther(!!s.type && !salaryOptions.some(o => o.value !== OTHER_VALUE && o.label === s.type));
   setSalaryFormTouched({});
   setEditingSalaryIndex(index);
   setShowSalaryModal(true);
@@ -782,8 +871,16 @@ useEffect(() => {
     setAllowanceForm((prev) => ({ ...prev, [name]: value }));
     setAllowanceFormTouched((prev) => ({ ...prev, [name]: true }));
   };
+  // Chọn loại phụ cấp từ combobox; chọn "Khác" thì để trống cho người dùng tự nhập
+  const handleAllowanceContentSelect = (value: string) => {
+    const isOther = value === OTHER_VALUE;
+    setAllowanceContentOther(isOther);
+    setAllowanceForm((prev) => ({ ...prev, content: isOther ? "" : value }));
+    setAllowanceFormTouched((prev) => ({ ...prev, content: true }));
+  };
   const handleAddAllowance = () => {
     setAllowanceForm({content:"", amount:0, currency:"VND", date:""});
+    setAllowanceContentOther(false);
     setAllowanceFormTouched({});
     setShowAllowanceModal(true);
   };
@@ -1213,9 +1310,9 @@ const handleCertSubmit = async (e: React.FormEvent) => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">-- Chọn --</option>
-              <option value="Male">Nam</option>
-              <option value="Female">Nữ</option>
-              <option value="Other">Khác</option>
+              <option value="M">Nam</option>
+              <option value="F">Nữ</option>
+              <option value="O">Khác</option>
             </select>
           </div>
 
@@ -1973,18 +2070,20 @@ const handleCertSubmit = async (e: React.FormEvent) => {
           </div>
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">Chức danh/vị trí công tác<span className="text-red-500">*</span></label>
-            <input 
+            <FilterSelect
             id="position"
-            type="text" maxLength={20} value={positionTitle}
-            onChange={e => setPositionTitle(e.target.value)}
+            value={positionTitle}
+            options={getOptions("POSITION")}
+            onChange={setPositionTitle}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
           </div>
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">Phòng/Bộ phận<span className="text-red-500">*</span></label>
-            <input 
+            <FilterSelect
             id="department"
-            type="text" maxLength={20} value={departmentName}
-            onChange={e => setDepartmentName(e.target.value)}
+            value={departmentName}
+            options={getOptions("DEPARTMENT")}
+            onChange={setDepartmentName}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
           </div>
           <div className="space-y-2">
@@ -1997,11 +2096,12 @@ const handleCertSubmit = async (e: React.FormEvent) => {
           </div>
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">Địa điểm làm việc<span className="text-red-500">*</span></label>
-            <input 
+            <FilterSelect
             id="workLocation"
-            type="text" maxLength={100} value={workLocation}
-            onChange={e => setWorkLocation(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Nhập địa điểm làm việc" />
+            value={workLocation}
+            options={getOptions("WORK_LOCATION")}
+            onChange={setWorkLocation}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
           </div>
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">Ngày bắt đầu làm việc<span className="text-red-500">*</span></label>
@@ -2022,7 +2122,12 @@ const handleCertSubmit = async (e: React.FormEvent) => {
           </div>
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">Loại hợp đồng lao động<span className="text-red-500">*</span></label>
-            <input type="text" maxLength={20} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+            <FilterSelect
+            id="contractType"
+            value={contractType}
+            options={getOptions("EMPLOYEE_CONTRACT")}
+            onChange={setContractType}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
           </div>
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">Thời hạn hợp đồng (tháng)<span className="text-red-500">*</span></label>
@@ -2090,7 +2195,20 @@ const handleCertSubmit = async (e: React.FormEvent) => {
                 <form onSubmit={handleSalarySubmit}>
                   <div className="mb-3">
                     <label className="block text-sm font-medium mb-1">Nội dung/loại lương<span className="text-red-500">*</span></label>
-                    <input name="type" type="text" maxLength={50} value={salaryForm.type} onChange={handleSalaryInputChange} className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${salaryFormTouched.type && (!salaryForm.type || salaryForm.type.length > 50) ? 'border-red-500' : 'border-gray-300'}`} required />
+                    <select
+                      value={salaryTypeOther ? OTHER_VALUE : salaryForm.type}
+                      onChange={e => handleSalaryTypeSelect(e.target.value)}
+                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${salaryFormTouched.type && !salaryTypeOther && !salaryForm.type ? 'border-red-500' : 'border-gray-300'}`}
+                      required
+                    >
+                      <option value="">--Chọn--</option>
+                      {salaryOptions.map(o => (
+                        <option key={`${o.filter}-${o.value}`} value={o.value === OTHER_VALUE ? OTHER_VALUE : o.label}>{o.label}</option>
+                      ))}
+                    </select>
+                    {salaryTypeOther && (
+                      <input name="type" type="text" maxLength={50} value={salaryForm.type} onChange={handleSalaryInputChange} placeholder="Nhập loại lương" className={`w-full mt-2 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${salaryFormTouched.type && (!salaryForm.type || salaryForm.type.length > 50) ? 'border-red-500' : 'border-gray-300'}`} required />
+                    )}
                   </div>
                   <div className="mb-3">
                     <label className="block text-sm font-medium mb-1">Số tiền(cũ)<span className="text-red-500">*</span></label>
@@ -2154,7 +2272,20 @@ const handleCertSubmit = async (e: React.FormEvent) => {
                 <form onSubmit={handleAllowanceSubmit}>
                   <div className="mb-3">
                     <label className="block text-sm font-medium mb-1">Nội dung/loại phụ cấp<span className="text-red-500">*</span></label>
-                    <input name="content" type="text" maxLength={50} value={allowanceForm.content} onChange={handleAllowanceInputChange} className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${allowanceFormTouched.content && (!allowanceForm.content || allowanceForm.content.length > 50) ? 'border-red-500' : 'border-gray-300'}`} required />
+                    <select
+                      value={allowanceContentOther ? OTHER_VALUE : allowanceForm.content}
+                      onChange={e => handleAllowanceContentSelect(e.target.value)}
+                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${allowanceFormTouched.content && !allowanceContentOther && !allowanceForm.content ? 'border-red-500' : 'border-gray-300'}`}
+                      required
+                    >
+                      <option value="">--Chọn--</option>
+                      {allowanceOptions.map(o => (
+                        <option key={`${o.filter}-${o.value}`} value={o.value === OTHER_VALUE ? OTHER_VALUE : o.label}>{o.label}</option>
+                      ))}
+                    </select>
+                    {allowanceContentOther && (
+                      <input name="content" type="text" maxLength={50} value={allowanceForm.content} onChange={handleAllowanceInputChange} placeholder="Nhập loại phụ cấp" className={`w-full mt-2 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${allowanceFormTouched.content && (!allowanceForm.content || allowanceForm.content.length > 50) ? 'border-red-500' : 'border-gray-300'}`} required />
+                    )}
                   </div>
                   <div className="mb-3">
                     <label className="block text-sm font-medium mb-1">Số tiền<span className="text-red-500">*</span></label>
