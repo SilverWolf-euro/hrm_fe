@@ -52,7 +52,12 @@ export default function MicrosoftCallback() {
           },
           // ⚠️ QUAN TRỌNG: bỏ credentials nếu không dùng cookie
           // credentials: "include",
-          body: JSON.stringify({ code, state }),
+          // redirect_uri phải trùng với giá trị đã dùng ở Login.jsx khi authorize
+          body: JSON.stringify({
+            code,
+            state,
+            redirect_uri: `${window.location.origin}/callback/microsoft`,
+          }),
         });
 
         if (!response.ok) {
