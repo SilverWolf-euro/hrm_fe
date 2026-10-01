@@ -35,6 +35,11 @@ function getSalaries(employee_id) {
   return api.get(`/api/v1/employee/salaries/${employee_id}`).then(res => res.data);
 }
 
+// 6.1. Lương phụ cấp
+function getAllowances(employee_id) {
+  return api.get(`/api/v1/employee/allowances/${employee_id}`).then(res => res.data);
+}
+
 // 7. Quá trình công tác/thăng tiến
 function getCareerHistories(employee_id) {
   return api.get(`/api/v1/employee/career_histories/${employee_id}`).then(res => res.data);
@@ -77,6 +82,11 @@ function upsertSalaries({ file, salary }) {
       'Content-Type': 'multipart/form-data',
     },
   }).then(res => res.data);
+}
+
+// Insert/Update Lương phụ cấp
+function upsertAllowances(data) {
+  return api.put('/api/v1/employee/allowances', data).then(res => res.data);
 }
 
 // Insert/Update Quá trình công tác/thăng tiến
@@ -187,12 +197,14 @@ const employeeService = {
   getEmergencyContacts,
   getCertificates,
   getSalaries,
+  getAllowances,
   getCareerHistories,
   getRewardDisciplines,
   upsertRelatives,
   upsertEmergencyContacts,
   upsertCertificates,
   upsertSalaries,
+  upsertAllowances,
   upsertCareerHistories,
   upsertRewardDisciplines,
   upsertContractHistories,

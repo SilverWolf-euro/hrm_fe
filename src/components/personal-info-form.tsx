@@ -863,8 +863,29 @@ useEffect(() => {
 
 // Allowance state
   const [allowances, setAllowances] = useState<Allowance[]>([]);
+  // Lấy danh sách phụ cấp từ API (type -> content, amount_new -> amount, end_date -> date)
+  const loadAllowances = async (employeeId: string) => {
+    const data = await employeeService.getAllowances(employeeId);
+    if (Array.isArray(data)) {
+      setAllowances(
+        data.map((item: any) => ({
+          id: item.id || null,
+          content: item.type || "",
+          amount: item.amount_new || 0,
+          currency: item.currency || "VND",
+          date: item.end_date ? dayjs(item.end_date).format("YYYY-MM-DD") : "",
+        }))
+      );
+    }
+  };
+  useEffect(() => {
+    if (profile && profile.id) {
+      loadAllowances(profile.id).catch((err: any) => console.error("Lỗi lấy danh sách phụ cấp:", err));
+    }
+  }, [profile]);
   const [showAllowanceModal, setShowAllowanceModal] = useState(false);
-  const [allowanceForm, setAllowanceForm] = useState<Allowance>({content:"", amount:0, currency:"VND", date:""});
+  const [editingAllowanceIndex, setEditingAllowanceIndex] = useState<number | null>(null);
+  const [allowanceForm, setAllowanceForm] = useState<Allowance>({id: null, content:"", amount:0, currency:"VND", date:""});
   const [allowanceFormTouched, setAllowanceFormTouched] = useState<Record<string, boolean>>({});
   const handleAllowanceInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -879,12 +900,22 @@ useEffect(() => {
     setAllowanceFormTouched((prev) => ({ ...prev, content: true }));
   };
   const handleAddAllowance = () => {
-    setAllowanceForm({content:"", amount:0, currency:"VND", date:""});
+    setAllowanceForm({id: null, content:"", amount:0, currency:"VND", date:""});
     setAllowanceContentOther(false);
     setAllowanceFormTouched({});
+    setEditingAllowanceIndex(null);
     setShowAllowanceModal(true);
   };
-  const handleAllowanceSubmit = (e: React.FormEvent) => {
+  const handleEditAllowance = (index: number) => {
+    const a = allowances[index];
+    setAllowanceForm({ ...a, id: a.id ?? null });
+    // Loại phụ cấp không có trong danh sách -> hiển thị là "Khác" kèm ô nhập text
+    setAllowanceContentOther(!!a.content && !allowanceOptions.some(o => o.value !== OTHER_VALUE && o.label === a.content));
+    setAllowanceFormTouched({});
+    setEditingAllowanceIndex(index);
+    setShowAllowanceModal(true);
+  };
+  const handleAllowanceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const errors: Record<string, boolean> = {};
     if (!allowanceForm.content) errors.content = true;
@@ -894,9 +925,27 @@ useEffect(() => {
     if (!allowanceForm.date) errors.date = true;
     setAllowanceFormTouched({ content:true, amount:true, currency:true, date:true });
     if (Object.keys(errors).length > 0) return;
-    
-    setAllowances((prev) => [...prev, allowanceForm]);
-    setShowAllowanceModal(false);
+
+    if (!profile?.id) {
+      alert("Vui lòng lưu thông tin nhân viên trước khi thêm phụ cấp!");
+      return;
+    }
+    try {
+      await employeeService.upsertAllowances({
+        id: allowanceForm.id ?? "",
+        employee_id: profile.id,
+        type: allowanceForm.content,
+        amount_new: Number(allowanceForm.amount) || 0,
+        currency: allowanceForm.currency,
+        end_date: allowanceForm.date ? new Date(allowanceForm.date + 'T00:00:00Z').toISOString() : null,
+      });
+      await loadAllowances(profile.id);
+      setShowAllowanceModal(false);
+      setEditingAllowanceIndex(null);
+    } catch (err: any) {
+      console.error("Lỗi cập nhật phụ cấp:", err);
+      alert("Có lỗi khi cập nhật phụ cấp!" + (err?.response?.data ? "\n" + JSON.stringify(err.response.data) : ""));
+    }
   };
 
   // Emergency contacts state
@@ -2245,12 +2294,13 @@ const handleCertSubmit = async (e: React.FormEvent) => {
                   <th className="border px-2 py-1">Số tiền</th>
                   <th className="border px-2 py-1">Loại tiền</th>
                   <th className="border px-2 py-1">Thời gian</th>
+                  <th className="border px-2 py-1">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
                 {allowances.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="border px-2 py-1 text-center text-gray-400">Chưa có phụ cấp nào</td>
+                    <td colSpan={5} className="border px-2 py-1 text-center text-gray-400">Chưa có phụ cấp nào</td>
                   </tr>
                 ) : (
                   allowances.map((a, idx) => (
@@ -2259,6 +2309,9 @@ const handleCertSubmit = async (e: React.FormEvent) => {
                       <td className="border px-2 py-1">{a.amount}</td>
                       <td className="border px-2 py-1">{a.currency}</td>
                       <td className="border px-2 py-1">{a.date && dayjs(a.date).format('DD/MM/YY')}</td>
+                      <td className="border px-2 py-1">
+                        <button type="button" onClick={() => handleEditAllowance(idx)} className="text-blue-600 hover:underline">Sửa</button>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -2268,7 +2321,7 @@ const handleCertSubmit = async (e: React.FormEvent) => {
           {showAllowanceModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
               <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md relative">
-                <h3 className="text-lg font-semibold mb-4">Thêm lương phụ cấp</h3>
+                <h3 className="text-lg font-semibold mb-4">{editingAllowanceIndex !== null ? 'Sửa lương phụ cấp' : 'Thêm lương phụ cấp'}</h3>
                 <form onSubmit={handleAllowanceSubmit}>
                   <div className="mb-3">
                     <label className="block text-sm font-medium mb-1">Nội dung/loại phụ cấp<span className="text-red-500">*</span></label>
