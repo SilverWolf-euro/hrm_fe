@@ -915,6 +915,18 @@ useEffect(() => {
     setEditingAllowanceIndex(index);
     setShowAllowanceModal(true);
   };
+  // Xóa phụ cấp dùng chung API xóa lương /salaries/:id
+  const handleDeleteAllowance = async (id: string | null | undefined) => {
+    if (!id) return;
+    if (!window.confirm("Bạn có chắc chắn muốn xóa phụ cấp này?")) return;
+    try {
+      await employeeService.removeSalaryHistory(id);
+      if (profile?.id) await loadAllowances(profile.id);
+    } catch (err: any) {
+      console.error("Lỗi xóa phụ cấp:", err);
+      alert("Có lỗi khi xóa phụ cấp!");
+    }
+  };
   const handleAllowanceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const errors: Record<string, boolean> = {};
@@ -2311,6 +2323,7 @@ const handleCertSubmit = async (e: React.FormEvent) => {
                       <td className="border px-2 py-1">{a.date && dayjs(a.date).format('DD/MM/YY')}</td>
                       <td className="border px-2 py-1">
                         <button type="button" onClick={() => handleEditAllowance(idx)} className="text-blue-600 hover:underline">Sửa</button>
+                        <button type="button" onClick={() => handleDeleteAllowance(a.id)} className="text-red-600 hover:underline ml-2">Xóa</button>
                       </td>
                     </tr>
                   ))
