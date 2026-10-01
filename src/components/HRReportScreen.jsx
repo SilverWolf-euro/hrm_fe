@@ -87,9 +87,9 @@ function HRReportScreen() {
                 <th className="border px-2 py-1">Ngày Sinh</th>
                 <th className="border px-2 py-1">Phòng ban</th>
                 <th className="border px-2 py-1">Chức vụ</th>
-                <th className="border px-2 py-1">Số điện thoại</th>
                 <th className="border px-2 py-1">Số điện thoại cá nhân</th>
                 <th className="border px-2 py-1">Email công ty</th>
+                <th className="border px-2 py-1">Trạng thái</th>
               </tr>
             </thead>
             <tbody>
@@ -103,9 +103,9 @@ function HRReportScreen() {
                   <td className="border px-2 py-1 text-left">{emp.birth_date ? dayjs(emp.birth_date).format('DD/MM/YYYY') : ""}</td>
                   <td className="border px-2 py-1 text-left">{emp.department_name}</td>
                   <td className="border px-2 py-1 text-left">{emp.position_title}</td>
-                  <td className="border px-2 py-1 text-left">{emp.company_phone}</td>
                   <td className="border px-2 py-1 text-left">{emp.personal_phone}</td>
                   <td className="border px-2 py-1 text-left">{emp.company_email}</td>
+                  <td className="border px-2 py-1 text-left">{emp.status}</td>
                 </tr>
               ))}
             </tbody>
