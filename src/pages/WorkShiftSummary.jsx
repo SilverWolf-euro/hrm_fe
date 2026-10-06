@@ -67,10 +67,14 @@ export default function WorkShiftSummary() {
         emp_id: item.emp_id,
         full_name: item.full_name,
         shifts: {},
+        workShiftIds: {},
       };
     }
+    const dayKey = dayjs(item.work_date).format("YYYY-MM-DD");
     // Lưu shift_id (chỉ lấy shift_id, không dùng id làm fallback)
-    employees[item.emp_id].shifts[dayjs(item.work_date).format("YYYY-MM-DD")] = item.shift_id;
+    employees[item.emp_id].shifts[dayKey] = item.shift_id;
+    // Lưu work_shift_id để truyền lại khi cập nhật phân ca
+    employees[item.emp_id].workShiftIds[dayKey] = item.work_shift_id || "";
   });
 
   const days = [];
@@ -192,7 +196,7 @@ export default function WorkShiftSummary() {
                           className="absolute top-1 right-1 px-2 py-1 text-xs bg-blue-500 text-white rounded shadow hover:bg-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-150"
                           style={{ zIndex: 2 }}
                           onClick={async () => {
-                            setPopup({ open: true, emp, date: d, currentShift: shiftCode });
+                            setPopup({ open: true, emp, date: d, currentShift: shiftCode, workShiftId: emp.workShiftIds[d.format("YYYY-MM-DD")] || "" });
                             setSelectedShift(shiftCode ? shiftCode.split(";").filter(Boolean) : []);
                             // Lấy danh sách ca làm việc nếu chưa có
                             if (shiftOptions.length === 0) {
@@ -262,7 +266,8 @@ export default function WorkShiftSummary() {
                       id,
                       shift_id: selectedShift.join(";"),
                       emp_id: popup.emp.emp_id,
-                      work_date: popup.date.format("YYYY-MM-DD")
+                      work_date: popup.date.format("YYYY-MM-DD"),
+                      work_shift_id: popup.workShiftId || ""
                     });
                     // Sau khi cập nhật thành công, reload lại dữ liệu bảng
                     setPopup({ open: false, emp: null, date: null, currentShift: "" });
