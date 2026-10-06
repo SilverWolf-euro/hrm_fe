@@ -180,16 +180,8 @@ export default function WorkShiftSummary() {
                   </td>
                   {days.map(d => {
                     const shiftCode = emp.shifts[d.format("YYYY-MM-DD")] || "";
-                    // Tìm shift_name từ shiftOptions hoặc data nếu có, fallback về shiftCode
-                    let shiftLabel = shiftCode;
-                    // Luôn đồng bộ shift_id với id, chỉ hiển thị shift_name nếu khớp id
-                    // shiftCode có thể gồm nhiều ca ("HC + C3 + C5")
-                    if (shiftCode && Array.isArray(shiftOptions) && shiftOptions.length > 0) {
-                      shiftLabel = parseShiftCodes(shiftCode).map(code => {
-                        const found = shiftOptions.find(opt => opt.value === code);
-                        return found ? found.label + ` (${found.value})` : code;
-                      }).join(" + ");
-                    }
+                    // Chỉ hiển thị mã ca; nhiều ca nối bằng " + " (VD: "HC + C3 + C5")
+                    const shiftLabel = parseShiftCodes(shiftCode).join(" + ");
                     return (
                       <td
                         key={d.format("YYYY-MM-DD")}
