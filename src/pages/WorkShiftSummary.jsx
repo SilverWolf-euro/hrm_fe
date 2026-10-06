@@ -12,6 +12,11 @@ const UNITS = [
   { label: "Nhà máy", value: "4" },
 ];
 
+// Tách chuỗi nhiều ca từ API ("HC + C3 + C5" hoặc "HC;C3;C5") thành mảng mã ca
+function parseShiftCodes(value) {
+  return (value || "").split(/[;+]/).map(s => s.trim()).filter(Boolean);
+}
+
 function getWeekRange(date) {
   const start = dayjs(date).startOf("week").add(1, "day"); // Thứ 2
   const end = start.add(6, "day"); // Chủ nhật
@@ -178,12 +183,12 @@ export default function WorkShiftSummary() {
                     // Tìm shift_name từ shiftOptions hoặc data nếu có, fallback về shiftCode
                     let shiftLabel = shiftCode;
                     // Luôn đồng bộ shift_id với id, chỉ hiển thị shift_name nếu khớp id
-                    // shiftCode có thể gồm nhiều ca nối bằng dấu ";"
+                    // shiftCode có thể gồm nhiều ca ("HC + C3 + C5")
                     if (shiftCode && Array.isArray(shiftOptions) && shiftOptions.length > 0) {
-                      shiftLabel = shiftCode.split(";").filter(Boolean).map(code => {
+                      shiftLabel = parseShiftCodes(shiftCode).map(code => {
                         const found = shiftOptions.find(opt => opt.value === code);
                         return found ? found.label + ` (${found.value})` : code;
-                      }).join("; ");
+                      }).join(" + ");
                     }
                     return (
                       <td
@@ -197,7 +202,7 @@ export default function WorkShiftSummary() {
                           style={{ zIndex: 2 }}
                           onClick={async () => {
                             setPopup({ open: true, emp, date: d, currentShift: shiftCode, workShiftId: emp.workShiftIds[d.format("YYYY-MM-DD")] || "" });
-                            setSelectedShift(shiftCode ? shiftCode.split(";").filter(Boolean) : []);
+                            setSelectedShift(parseShiftCodes(shiftCode));
                             // Lấy danh sách ca làm việc nếu chưa có
                             if (shiftOptions.length === 0) {
                               try {
@@ -287,7 +292,10 @@ export default function WorkShiftSummary() {
                     alert("Cập nhật ca làm việc thất bại!");
                   }
                 }}
-                disabled={selectedShift.length === 0 || selectedShift.join(";") === popup.currentShift}
+                disabled={
+                  selectedShift.length === 0 ||
+                  [...selectedShift].sort().join(";") === parseShiftCodes(popup.currentShift).sort().join(";")
+                }
               >Lưu thay đổi</button>
             </div>
           </div>
