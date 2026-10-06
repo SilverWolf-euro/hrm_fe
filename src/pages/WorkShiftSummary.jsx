@@ -21,7 +21,8 @@ function getWeekRange(date) {
 export default function WorkShiftSummary() {
   // State cho popup chọn ca
   const [popup, setPopup] = useState({ open: false, emp: null, date: null, currentShift: "" });
-  const [selectedShift, setSelectedShift] = useState("");
+  // Danh sách ca được chọn (cho phép chọn nhiều), gửi API dạng "id1;id2"
+  const [selectedShift, setSelectedShift] = useState([]);
   const [shiftOptions, setShiftOptions] = useState([]);
   const [unit, setUnit] = useState("");
   const [department, setDepartment] = useState("");
@@ -173,9 +174,12 @@ export default function WorkShiftSummary() {
                     // Tìm shift_name từ shiftOptions hoặc data nếu có, fallback về shiftCode
                     let shiftLabel = shiftCode;
                     // Luôn đồng bộ shift_id với id, chỉ hiển thị shift_name nếu khớp id
+                    // shiftCode có thể gồm nhiều ca nối bằng dấu ";"
                     if (shiftCode && Array.isArray(shiftOptions) && shiftOptions.length > 0) {
-                      const found = shiftOptions.find(opt => opt.value === shiftCode);
-                      if (found) shiftLabel = found.label + ` (${found.value})`;
+                      shiftLabel = shiftCode.split(";").filter(Boolean).map(code => {
+                        const found = shiftOptions.find(opt => opt.value === code);
+                        return found ? found.label + ` (${found.value})` : code;
+                      }).join("; ");
                     }
                     return (
                       <td
@@ -189,7 +193,7 @@ export default function WorkShiftSummary() {
                           style={{ zIndex: 2 }}
                           onClick={async () => {
                             setPopup({ open: true, emp, date: d, currentShift: shiftCode });
-                            setSelectedShift(shiftCode);
+                            setSelectedShift(shiftCode ? shiftCode.split(";").filter(Boolean) : []);
                             // Lấy danh sách ca làm việc nếu chưa có
                             if (shiftOptions.length === 0) {
                               try {
@@ -230,11 +234,13 @@ export default function WorkShiftSummary() {
                 shiftOptions.map(opt => (
                   <label key={opt.value} className="flex items-center gap-2 mb-1 cursor-pointer">
                     <input
-                      type="radio"
+                      type="checkbox"
                       name="shift"
                       value={opt.value}
-                      checked={selectedShift === opt.value}
-                      onChange={() => setSelectedShift(opt.value)}
+                      checked={selectedShift.includes(opt.value)}
+                      onChange={e => setSelectedShift(prev =>
+                        e.target.checked ? [...prev, opt.value] : prev.filter(v => v !== opt.value)
+                      )}
                     />
                     {opt.label}
                   </label>
@@ -249,16 +255,18 @@ export default function WorkShiftSummary() {
               <button
                 className="px-4 py-1 rounded bg-blue-600 text-white hover:bg-blue-700"
                 onClick={async () => {
-                  if (!popup.emp || !popup.date || !selectedShift) return;
+                  if (!popup.emp || !popup.date || selectedShift.length === 0) return;
                   const id = `${popup.emp.emp_id}_${popup.date.format("YYYYMMDD")}`;
                   try {
                     await workShiftService.updateWorkShiftDetail(id, {
                       id,
-                      shift_id: selectedShift
+                      shift_id: selectedShift.join(";"),
+                      emp_id: popup.emp.emp_id,
+                      work_date: popup.date.format("YYYY-MM-DD")
                     });
                     // Sau khi cập nhật thành công, reload lại dữ liệu bảng
                     setPopup({ open: false, emp: null, date: null, currentShift: "" });
-                    setSelectedShift("");
+                    setSelectedShift([]);
                     // Reload bảng bằng cách gọi lại API
                     const [from, to] = week;
                     workShiftService.getWorkShiftDetail({
@@ -274,7 +282,7 @@ export default function WorkShiftSummary() {
                     alert("Cập nhật ca làm việc thất bại!");
                   }
                 }}
-                disabled={!selectedShift || selectedShift === popup.currentShift}
+                disabled={selectedShift.length === 0 || selectedShift.join(";") === popup.currentShift}
               >Lưu thay đổi</button>
             </div>
           </div>
