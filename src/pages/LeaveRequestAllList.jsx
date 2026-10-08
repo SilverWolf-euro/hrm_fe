@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { getAllLeaveRequests } from "../services/leaveRequestAllService";
+import { getAllLeaveRequests, exportLeaveRequests } from "../services/leaveRequestAllService";
 import { getDepartments } from "../services/departmentService";
 // import LeaveRequestAllDetail from "./LeaveRequestAllDetail";
 import LeaveRequestDetail from "./LeaveRequestDetail";
@@ -27,6 +27,7 @@ export default function LeaveRequestAllList() {
   const [size, setSize] = useState(10);
   const [loading, setLoading] = useState(false);
   const [viewCode, setViewCode] = useState(null);
+  const [exporting, setExporting] = useState(false);
   
   useEffect(() => {
     getDepartments().then(setDepartments).catch(() => setDepartments([]));
@@ -51,6 +52,31 @@ export default function LeaveRequestAllList() {
     setData(res.items || []);
     setTotal(res.total || 0);
     setLoading(false);
+  }
+
+  async function handleExport() {
+    setExporting(true);
+    try {
+      const blob = await exportLeaveRequests({
+        from_date: fromDate,
+        to_date: toDate,
+        department_code: department,
+        keywords: search,
+        status,
+      });
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `DanhSachDonNghi_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert("Lỗi khi tải file danh sách đơn nghỉ!");
+    } finally {
+      setExporting(false);
+    }
   }
 
   // Đã bỏ các filter ở client để hiển thị tất cả các bản ghi đúng với dữ liệu phân trang từ API
@@ -169,6 +195,13 @@ export default function LeaveRequestAllList() {
               onChange={e => setSearch(e.target.value)}
             />
             <button className="bg-slate-800 text-white px-4 rounded" onClick={e => { e.preventDefault(); fetchData(); }}>Tìm kiếm</button>
+            <button
+              className="bg-green-600 text-white px-4 rounded disabled:opacity-50"
+              onClick={e => { e.preventDefault(); handleExport(); }}
+              disabled={exporting}
+            >
+              {exporting ? "Đang tải..." : "Tải File"}
+            </button>
           </div>
         </div>
       </div>
