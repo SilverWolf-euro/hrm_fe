@@ -225,6 +225,7 @@ export default function WorkShiftRuleList() {
         open={popupOpen}
         onClose={handlePopupClose}
         shiftRuleId={selectedRule?.id || ""}
+        rule={selectedRule}
         onSubmit={handlePopupSubmit}
         fetchEmployees={fetchEmployees}
         fetchDepartments={fetchDepartments}

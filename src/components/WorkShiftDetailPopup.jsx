@@ -13,10 +13,32 @@ const applyScopeOptions = [
   { label: 'Tất cả', value: 'ALL' },
 ];
 
+const weekdayFields = [
+  { key: 'is_monday', label: 'T2' },
+  { key: 'is_tuesday', label: 'T3' },
+  { key: 'is_wednesday', label: 'T4' },
+  { key: 'is_thursday', label: 'T5' },
+  { key: 'is_friday', label: 'T6' },
+  { key: 'is_saturday', label: 'T7' },
+  { key: 'is_sunday', label: 'CN' },
+];
+
+const applyTypeFromApi = type => {
+  if (type === 'DEPARTMENT') return 'department';
+  if (type === 'EMPLOYEE') return 'employee';
+  return 'unit';
+};
+
+// "2026-06-01T00:00:00Z" -> "2026-06-01" cho input type="date"
+const toDateInput = d => (d ? String(d).slice(0, 10) : '');
+
+const toArray = v => (Array.isArray(v) ? v : v ? [v] : []);
+
 const WorkShiftDetailPopup = ({
   open,
   onClose,
   shiftRuleId,
+  rule,
   onSubmit,
   fetchEmployees,
   fetchDepartments,
@@ -34,6 +56,26 @@ const WorkShiftDetailPopup = ({
 
   const [employeeSearch, setEmployeeSearch] = useState("");
   const [departmentSearch, setDepartmentSearch] = useState("");
+
+  // Đổ toàn bộ thông tin từ bản ghi trong list vào form mỗi khi mở popup
+  useEffect(() => {
+    if (!open) return;
+    setApplyType(applyTypeFromApi(rule?.apply_type));
+    setApplyScope(rule?.apply_scope || '2');
+    setEffectiveFrom(toDateInput(rule?.effective_from));
+    setEffectiveTo(toDateInput(rule?.effective_to));
+    setSelectedDepartments(toArray(rule?.department_id ?? rule?.department_code));
+    setSelectedEmployees(toArray(rule?.employee_id));
+    setEmployeeSearch('');
+    setDepartmentSearch('');
+  }, [open, rule]);
+
+  const handleApplyTypeChange = value => {
+    setApplyType(value);
+    // reset selections khi đổi loại
+    if (value !== 'employee') setSelectedEmployees([]);
+    if (value !== 'department') setSelectedDepartments([]);
+  };
 
   const searchTimeout = useRef();
   useEffect(() => {
@@ -59,9 +101,6 @@ const WorkShiftDetailPopup = ({
     if (applyType === 'department' && fetchDepartments) {
       fetchDepartments(departmentSearch).then(setDepartmentList);
     }
-    // reset selections khi đổi loại
-    if (applyType !== 'employee') setSelectedEmployees([]);
-    if (applyType !== 'department') setSelectedDepartments([]);
     // eslint-disable-next-line
   }, [applyType, fetchEmployees, fetchDepartments, employeeSearch, departmentSearch, applyScope]);
 
@@ -89,6 +128,23 @@ const WorkShiftDetailPopup = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
       <div className="bg-white rounded-lg shadow-lg w-full max-w-lg p-6 relative animate-fadeIn">
         <h2 className="text-xl font-bold mb-4 text-blue-700">Thiết lập chi tiết phân ca</h2>
+        {rule && (
+          <div className="mb-3 rounded border bg-gray-50 px-3 py-2 text-sm">
+            <div><span className="font-semibold">Mã phân ca:</span> {rule.id}</div>
+            <div><span className="font-semibold">Ca làm việc:</span> {rule.shift_name || rule.shift_code || rule.shift_id || '-'}</div>
+            <div className="flex flex-wrap items-center gap-1 mt-1">
+              <span className="font-semibold mr-1">Ngày làm việc:</span>
+              {weekdayFields.map(d => (
+                <span
+                  key={d.key}
+                  className={"px-2 py-0.5 rounded text-xs " + (rule[d.key] ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-500")}
+                >
+                  {d.label}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="mb-3">
           <label className="block font-semibold mb-1">Ngày hiệu lực từ</label>
           <input type="date" value={effectiveFrom} onChange={e => setEffectiveFrom(e.target.value)}
@@ -118,7 +174,7 @@ const WorkShiftDetailPopup = ({
                   name="applyType"
                   value={opt.value}
                   checked={applyType === opt.value}
-                  onChange={() => setApplyType(opt.value)}
+                  onChange={() => handleApplyTypeChange(opt.value)}
                   className="accent-blue-600"
                 />
                 {opt.label}
@@ -203,6 +259,7 @@ WorkShiftDetailPopup.propTypes = {
   open: PropTypes.bool.isRequired,
   onClose: PropTypes.func.isRequired,
   shiftRuleId: PropTypes.string.isRequired,
+  rule: PropTypes.object,
   onSubmit: PropTypes.func.isRequired,
   fetchEmployees: PropTypes.func,
   fetchDepartments: PropTypes.func,
