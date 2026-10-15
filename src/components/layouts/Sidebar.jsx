@@ -147,8 +147,9 @@ export default function Sidebar({
       name: "Hệ thống & phân quyền",
       icon: "M12 4a8 8 0 100 16 8 8 0 000-16zm1 13h-2v-2h2v2zm0-4h-2V7h2v6z",
       children: [
-        //{ id: "user-role", name: "Phân quyền người dùng" },
-        //{ id: "role-management", name: "Quản lý vai trò" },
+        { id: "role-management", name: "Quản lý vai trò" },
+        { id: "user-management", name: "Quản lý tài khoản" },
+        { id: "user-permission-management", name: "Phân quyền người dùng" },
         //{ id: "activity-log", name: "Nhật ký hoạt động" },
         { id: "departments", name: "Quản lý phòng ban" },
         { id: "positions", name: "Quản lý chức vụ" },

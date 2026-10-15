@@ -38,6 +38,9 @@ import AttendanceDailyReport from "../pages/AttendanceDailyReport.jsx";
 import LeaveSummaryPage from "../pages/LeaveSummaryPage.jsx";
 import DepartmentManagement from "../pages/DepartmentManagement.jsx";
 import PositionManagement from "../pages/PositionManagement.jsx";
+import RoleManagement from "../pages/account/RoleManagement.jsx";
+import UserManagement from "../pages/account/UserManagement.jsx";
+import UserPermissionManagement from "../pages/account/UserPermissionManagement.jsx";
 
 function PrivateRoute({ children, roles, publicRoute }) {
   const auth = useAuthStore();
@@ -102,6 +105,9 @@ export default function AppRoutes() {
         <Route path="leave-summary" element={<LeaveSummaryPage />} />
         <Route path="departments" element={<DepartmentManagement />} />
         <Route path="positions" element={<PositionManagement />} />
+        <Route path="role-management" element={<RoleManagement />} />
+        <Route path="user-management" element={<UserManagement />} />
+        <Route path="user-permission-management" element={<UserPermissionManagement />} />
         {/* catch-all route for "Not Found" */}
         {/* <Route path="*" element={<NotFound />} /> */}
       </Route>
