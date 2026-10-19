@@ -44,6 +44,7 @@ const WorkShiftDetailPopup = ({
   fetchDepartments,
   loading = false,
   message = "",
+  readOnly = false,
 }) => {
   const [applyType, setApplyType] = useState('unit');
   const [applyScope, setApplyScope] = useState('2');
@@ -124,10 +125,18 @@ const WorkShiftDetailPopup = ({
 
   if (!open) return null;
 
+  // Chế độ xem: chỉ hiển thị phòng ban / nhân viên đã chọn
+  const visibleDepartments = readOnly
+    ? departmentList.filter(dep => selectedDepartments.includes(dep.code || dep.id))
+    : departmentList;
+  const visibleEmployees = readOnly
+    ? employeeList.filter(emp => selectedEmployees.includes(emp.id || emp.code))
+    : employeeList;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
       <div className="bg-white rounded-lg shadow-lg w-full max-w-lg p-6 relative animate-fadeIn">
-        <h2 className="text-xl font-bold mb-4 text-blue-700">Thiết lập chi tiết phân ca</h2>
+        <h2 className="text-xl font-bold mb-4 text-blue-700">{readOnly ? "Chi tiết phân ca" : "Thiết lập chi tiết phân ca"}</h2>
         {rule && (
           <div className="mb-3 rounded border bg-gray-50 px-3 py-2 text-sm">
             <div><span className="font-semibold">Mã phân ca:</span> {rule.id}</div>
@@ -147,17 +156,17 @@ const WorkShiftDetailPopup = ({
         )}
         <div className="mb-3">
           <label className="block font-semibold mb-1">Ngày hiệu lực từ</label>
-          <input type="date" value={effectiveFrom} onChange={e => setEffectiveFrom(e.target.value)}
+          <input type="date" value={effectiveFrom} onChange={e => setEffectiveFrom(e.target.value)} disabled={readOnly}
             className="border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
         <div className="mb-3">
           <label className="block font-semibold mb-1">Ngày hiệu lực đến</label>
-          <input type="date" value={effectiveTo} onChange={e => setEffectiveTo(e.target.value)}
+          <input type="date" value={effectiveTo} onChange={e => setEffectiveTo(e.target.value)} disabled={readOnly}
             className="border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
         <div className="mb-3">
           <label className="block font-semibold mb-1">Phạm vi áp dụng</label>
-          <select value={applyScope} onChange={e => setApplyScope(e.target.value)}
+          <select value={applyScope} onChange={e => setApplyScope(e.target.value)} disabled={readOnly}
             className="border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-400">
             {applyScopeOptions.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -175,6 +184,7 @@ const WorkShiftDetailPopup = ({
                   value={opt.value}
                   checked={applyType === opt.value}
                   onChange={() => handleApplyTypeChange(opt.value)}
+                  disabled={readOnly}
                   className="accent-blue-600"
                 />
                 {opt.label}
@@ -183,20 +193,23 @@ const WorkShiftDetailPopup = ({
           </div>
           {applyType === 'department' && (
             <div className="border rounded bg-gray-50 p-4">
-              <input
-                type="text"
-                className="border rounded px-2 py-1 w-full mb-3 focus:outline-none focus:ring-2 focus:ring-blue-300"
-                placeholder="Tìm kiếm tên phòng ban..."
-                value={departmentSearch}
-                onChange={e => setDepartmentSearch(e.target.value)}
-              />
+              {!readOnly && (
+                <input
+                  type="text"
+                  className="border rounded px-2 py-1 w-full mb-3 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  placeholder="Tìm kiếm tên phòng ban..."
+                  value={departmentSearch}
+                  onChange={e => setDepartmentSearch(e.target.value)}
+                />
+              )}
               <div className="max-h-56 overflow-y-auto divide-y divide-gray-100 bg-white rounded border">
-                {departmentList.length > 0 ? departmentList.map(dep => (
+                {visibleDepartments.length > 0 ? visibleDepartments.map(dep => (
                   <label key={dep.code || dep.id} className="flex items-center px-4 py-2 cursor-pointer hover:bg-blue-50">
                     <input
                       type="checkbox"
                       className="mr-2 accent-blue-600"
                       checked={selectedDepartments.includes(dep.code || dep.id)}
+                      disabled={readOnly}
                       onChange={e => {
                         const val = dep.code || dep.id;
                         if (e.target.checked) setSelectedDepartments([...selectedDepartments, val]);
@@ -211,20 +224,23 @@ const WorkShiftDetailPopup = ({
           )}
           {applyType === 'employee' && (
             <div className="border rounded bg-gray-50 p-4">
-              <input
-                type="text"
-                className="border rounded px-2 py-1 w-full mb-3 focus:outline-none focus:ring-2 focus:ring-blue-300"
-                placeholder="Tìm kiếm tên hoặc mã chấm công..."
-                value={employeeSearch}
-                onChange={e => setEmployeeSearch(e.target.value)}
-              />
+              {!readOnly && (
+                <input
+                  type="text"
+                  className="border rounded px-2 py-1 w-full mb-3 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  placeholder="Tìm kiếm tên hoặc mã chấm công..."
+                  value={employeeSearch}
+                  onChange={e => setEmployeeSearch(e.target.value)}
+                />
+              )}
               <div className="max-h-56 overflow-y-auto divide-y divide-gray-100 bg-white rounded border">
-                {employeeList.length > 0 ? employeeList.map(emp => (
+                {visibleEmployees.length > 0 ? visibleEmployees.map(emp => (
                   <label key={emp.id || emp.code} className="flex items-center px-4 py-2 cursor-pointer hover:bg-blue-50">
                     <input
                       type="checkbox"
                       className="mr-2 accent-blue-600"
                       checked={selectedEmployees.includes(emp.id || emp.code)}
+                      disabled={readOnly}
                       onChange={e => {
                         const val = emp.id || emp.code;
                         if (e.target.checked) setSelectedEmployees([...selectedEmployees, val]);
@@ -240,13 +256,15 @@ const WorkShiftDetailPopup = ({
         </div>
         {message && <div className={"mb-3 text-center font-semibold " + (message.includes("thành công") ? "text-green-600" : "text-red-600")}>{message}</div>}
         <div className="flex justify-end gap-2 mt-6">
-          <button
-            onClick={handleSubmit}
-            className={"px-4 py-2 rounded bg-blue-600 text-white font-semibold hover:bg-blue-700 transition " + (loading ? "opacity-60 cursor-not-allowed" : "")}
-            disabled={loading}
-          >
-            {loading ? "Đang xử lý..." : "Xác nhận"}
-          </button>
+          {!readOnly && (
+            <button
+              onClick={handleSubmit}
+              className={"px-4 py-2 rounded bg-blue-600 text-white font-semibold hover:bg-blue-700 transition " + (loading ? "opacity-60 cursor-not-allowed" : "")}
+              disabled={loading}
+            >
+              {loading ? "Đang xử lý..." : "Xác nhận"}
+            </button>
+          )}
           <button onClick={onClose} className="px-4 py-2 rounded bg-gray-200 text-gray-700 font-semibold hover:bg-gray-300 transition" disabled={loading}>Đóng</button>
         </div>
         <button onClick={onClose} className="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-xl font-bold" disabled={loading}>×</button>
@@ -265,6 +283,7 @@ WorkShiftDetailPopup.propTypes = {
   fetchDepartments: PropTypes.func,
   loading: PropTypes.bool,
   message: PropTypes.string,
+  readOnly: PropTypes.bool,
 };
 
 export default WorkShiftDetailPopup;

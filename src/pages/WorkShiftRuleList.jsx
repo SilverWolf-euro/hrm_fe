@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { EyeIcon } from "@heroicons/react/24/outline";
 import workShiftService from "../services/workShiftService";
 import WorkShiftDetailPopup from "../components/WorkShiftDetailPopup";
 import employeeService from "../services/employeeService";
@@ -195,7 +196,9 @@ export default function WorkShiftRuleList() {
                   </span>
                 </td>
                 <td className="p-2 border text-center">
-                  <button className="text-blue-600 mr-2" onClick={() => handleEditClick(rule)}>✏️</button>
+                  <button className="text-blue-600 hover:text-blue-800 mr-2 align-middle" title="Xem" onClick={() => handleEditClick(rule)}>
+                    <EyeIcon className="w-5 h-5" />
+                  </button>
                   <button className="text-red-600" onClick={async () => {
                     if (window.confirm('Bạn có chắc chắn muốn xóa ca này không?')) {
                       try {
@@ -231,6 +234,7 @@ export default function WorkShiftRuleList() {
         fetchDepartments={fetchDepartments}
         loading={popupLoading}
         message={popupMessage}
+        readOnly
       />
     </div>
   );
