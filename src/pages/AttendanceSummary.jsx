@@ -1,14 +1,36 @@
 import React, { useEffect, useState } from "react";
 import { searchWorkLocation } from "../services/workLocationService";
 import workShiftService from "../services/workShiftService";
+import { saveAs } from "file-saver";
 
 function getFirstDayOfMonth(year, month) {
   return `${year}-${String(month).padStart(2, "0")}-01`;
 }
 
+// Dùng chung cho bảng hiển thị và file Excel để luôn khớp cột/dữ liệu
 const columns = [
-  "STT", "Mã NV", "Họ và tên", "Chức vụ", "Công TV", "Công CT", "Ngày phép", "Ngày nghỉ chế độ", "Ngày lễ", "Giờ ngày thường", "Giờ ngày nghỉ", "Giờ ngày lễ", "Tổng số ngày hưởng lương", "Hỗ trợ ăn giữa ca"
+  { title: "STT", width: 6, center: true, value: (row, idx) => idx + 1 },
+  { title: "Mã NV", width: 12, value: row => row.employee_id },
+  { title: "Họ và tên", width: 28, value: row => row.full_name },
+  { title: "Chức vụ", width: 22, value: row => row.position_name },
+  { title: "Công TV", width: 10, center: true, value: row => row.total_work_day_tv },
+  { title: "Công CT", width: 10, center: true, value: row => row.total_work_day_ct },
+  { title: "Ngày phép", width: 11, center: true, value: row => row.total_leave_day },
+  { title: "Ngày nghỉ chế độ", width: 14, center: true, value: row => row.total_benefit_leave },
+  { title: "Ngày lễ", width: 10, center: true, value: row => row.total_holiday },
+  { title: "Giờ ngày thường", width: 14, center: true, value: row => row.total_ot_time },
+  { title: "Giờ ngày nghỉ", width: 13, center: true, value: row => row.total_ot_time_weekend },
+  { title: "Giờ ngày lễ", width: 12, center: true, value: row => row.total_ot_time_holiday },
+  { title: "Tổng số ngày hưởng lương", width: 16, center: true, value: row => row.total_paid_days },
+  { title: "Hỗ trợ ăn giữa ca", width: 14, center: true, value: row => row.total_meal_days },
 ];
+
+// Giữ số là số trong Excel (API có thể trả về chuỗi "1.5")
+function toCellValue(v) {
+  if (v === null || v === undefined) return "";
+  if (typeof v === "string" && v.trim() !== "" && !isNaN(Number(v))) return Number(v);
+  return v;
+}
 
 export default function AttendanceSummary({ onClose, area }) {
   const [locations, setLocations] = useState([]);
@@ -56,34 +78,60 @@ export default function AttendanceSummary({ onClose, area }) {
     // eslint-disable-next-line
   }, [selectedLocation, year, month]);
 
-  const handleExport = () => {
-    // Xuất excel đơn giản: chuyển table thành CSV
-    let csv = columns.join(",") + "\n";
-    data.forEach((row, idx) => {
-      csv += [
-        idx + 1,
-        row.employee_code,
-        row.employee_name,
-        row.position,
-        row.probation_days,
-        row.official_days,
-        row.leave_days,
-        row.benefit_days,
-        row.holiday_days,
-        row.ot_normal,
-        row.ot_weekend,
-        row.ot_holiday,
-        row.total_paid_days,
-        row.meal_support
-      ].join(",") + "\n";
+  const handleExport = async () => {
+    if (data.length === 0) {
+      alert("Không có dữ liệu để xuất.");
+      return;
+    }
+    const ExcelJS = (await import("exceljs")).default;
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet(`Tháng ${month}-${year}`);
+    const location = locations.find(loc => String(loc.id) === String(selectedLocation));
+    const border = {
+      top: { style: "thin" }, left: { style: "thin" },
+      bottom: { style: "thin" }, right: { style: "thin" },
+    };
+
+    sheet.columns = columns.map(col => ({ width: col.width }));
+
+    // Tiêu đề
+    sheet.mergeCells(1, 1, 1, columns.length);
+    const titleCell = sheet.getCell(1, 1);
+    titleCell.value = `Bảng tổng hợp công - Tháng ${month}/${year}`;
+    titleCell.font = { bold: true, size: 14 };
+    titleCell.alignment = { horizontal: "center" };
+    sheet.mergeCells(2, 1, 2, columns.length);
+    const locationCell = sheet.getCell(2, 1);
+    locationCell.value = `Khu vực: ${location ? location.name : ""}`;
+    locationCell.alignment = { horizontal: "center" };
+
+    // Header
+    const headerRow = sheet.getRow(4);
+    headerRow.values = columns.map(col => col.title);
+    headerRow.height = 32;
+    headerRow.eachCell(cell => {
+      cell.font = { bold: true };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF3F4F6" } };
+      cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+      cell.border = border;
     });
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `attendance_summary_${year}_${month}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+
+    // Dữ liệu
+    data.forEach((row, idx) => {
+      const excelRow = sheet.addRow(columns.map(col => toCellValue(col.value(row, idx))));
+      excelRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+        cell.border = border;
+        if (columns[colNumber - 1].center) cell.alignment = { horizontal: "center" };
+      });
+    });
+
+    sheet.views = [{ state: "frozen", ySplit: 4 }];
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    saveAs(blob, `BangTongHopCong_${year}_${String(month).padStart(2, "0")}.xlsx`);
   };
 
   return (
@@ -119,7 +167,7 @@ export default function AttendanceSummary({ onClose, area }) {
           <table className="min-w-full border text-sm">
             <thead>
               <tr className="bg-gray-100">
-                {columns.map(col => <th key={col} className="border px-2 py-1">{col}</th>)}
+                {columns.map(col => <th key={col.title} className="border px-2 py-1">{col.title}</th>)}
               </tr>
             </thead>
             <tbody>
@@ -130,20 +178,11 @@ export default function AttendanceSummary({ onClose, area }) {
               ) : (
                 data.map((row, idx) => (
                   <tr key={row.employee_id || idx}>
-                    <td className="border px-2 py-1">{idx + 1}</td>
-                    <td className="border px-2 py-1">{row.employee_id}</td>
-                    <td className="border px-2 py-1">{row.full_name}</td>
-                    <td className="border px-2 py-1">{row.position_name}</td>
-                    <td className="border px-2 py-1 text-center">{row.total_work_day_tv}</td>
-                    <td className="border px-2 py-1 text-center">{row.total_work_day_ct}</td>
-                    <td className="border px-2 py-1 text-center">{row.total_leave_day}</td>
-                    <td className="border px-2 py-1 text-center">{row.total_benefit_leave}</td>
-                    <td className="border px-2 py-1 text-center">{row.total_holiday}</td>
-                    <td className="border px-2 py-1 text-center">{row.total_ot_time}</td>
-                    <td className="border px-2 py-1 text-center">{row.total_ot_time_weekend}</td>
-                    <td className="border px-2 py-1 text-center">{row.total_ot_time_holiday}</td>
-                    <td className="border px-2 py-1 text-center">{row.total_paid_days}</td>
-                    <td className="border px-2 py-1 text-center">{row.total_meal_days}</td>
+                    {columns.map(col => (
+                      <td key={col.title} className={`border px-2 py-1${col.center ? " text-center" : ""}`}>
+                        {col.value(row, idx)}
+                      </td>
+                    ))}
                   </tr>
                 ))
               )}
