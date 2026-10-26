@@ -49,11 +49,11 @@ const AttendanceDailyReport = () => {
       4: { name: "Nhà máy SX Nhựa gỗ", items: [] },
     };
     dataArr.forEach((item) => {
-      if (item.work_location === "2" || item.work_location === 2) {
-        groups[2].items.push(item);
-      } else if (item.work_location === "4" || item.work_location === 4) {
-        groups[4].items.push(item);
+      const locId = String(item.work_location_id ?? "");
+      if (!groups[locId]) {
+        groups[locId] = { name: item.work_location || "Khác", items: [] };
       }
+      groups[locId].items.push(item);
     });
     return groups;
   };
