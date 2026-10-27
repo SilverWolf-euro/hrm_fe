@@ -32,14 +32,91 @@ const AttendanceDailyReport = () => {
     setDate(e.target.value);
   };
 
-  const exportToExcel = () => {
-    // Simple CSV export for demo
-    let csv = "STT,Phòng ban/Nhà máy,Tổng số NS,Có mặt,Vắng mặt,Làm ca chiều+đêm\n";
-    data.forEach((row, idx) => {
-      csv += `${idx + 1},${row.department_name} (${row.work_location_id}),${row.total_emp},${row.total_check_in},${row.total_emp - row.total_check_in},${row.total_work_night}\n`;
+  const exportToExcel = async () => {
+    const ExcelJS = (await import("exceljs")).default;
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Báo cáo chấm công");
+    const border = {
+      top: { style: "thin" },
+      left: { style: "thin" },
+      bottom: { style: "thin" },
+      right: { style: "thin" },
+    };
+
+    sheet.columns = [
+      { width: 6 },
+      { width: 40 },
+      { width: 14 },
+      { width: 14 },
+      { width: 16 },
+      { width: 26 },
+    ];
+
+    sheet.mergeCells("A1:F1");
+    sheet.getCell("A1").value = `BÁO CÁO CHẤM CÔNG NGÀY ${date.split("-").reverse().join("/")}`;
+    sheet.getCell("A1").font = { bold: true, size: 14 };
+    sheet.getCell("A1").alignment = { horizontal: "center" };
+
+    const header = sheet.addRow([
+      "STT",
+      "Nội dung",
+      "Tổng số NS",
+      "Số NS có mặt",
+      "Số NS vắng mặt",
+      "Số NS làm ca chiều + ca đêm",
+    ]);
+    header.eachCell((cell) => {
+      cell.font = { bold: true };
+      cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF3F4F6" } };
+      cell.border = border;
     });
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    saveAs(blob, `BaoCaoChamCong_${date}.csv`);
+
+    let rowNo = 1;
+    Object.values(groupByLocation(data)).forEach((group) => {
+      if (group.items.length === 0) return;
+      const total = calcTotal(group.items);
+
+      const groupRow = sheet.addRow([group.name]);
+      sheet.mergeCells(groupRow.number, 1, groupRow.number, 6);
+      groupRow.getCell(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+      groupRow.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF16A34A" } };
+
+      const totalRow = sheet.addRow([
+        "",
+        "Tổng cộng",
+        total.total_emp,
+        total.total_check_in,
+        total.total_emp - total.total_check_in,
+        total.total_work_night,
+      ]);
+      totalRow.font = { bold: true };
+
+      group.items.forEach((row) => {
+        sheet.addRow([
+          rowNo++,
+          row.department_name,
+          row.total_emp,
+          row.total_check_in,
+          row.total_emp - row.total_check_in,
+          row.total_work_night,
+        ]);
+      });
+    });
+
+    sheet.eachRow((row, rowNumber) => {
+      if (rowNumber <= 2) return;
+      row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+        cell.border = border;
+        if (colNumber !== 2) cell.alignment = { horizontal: "center" };
+      });
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    saveAs(blob, `BaoCaoChamCong_${date}.xlsx`);
   };
 
   // Nhóm dữ liệu theo work_location
