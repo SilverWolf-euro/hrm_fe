@@ -249,6 +249,7 @@ export default function UserManagement() {
     try {
       if (selectedData) {
         await updateUserInfo({
+          user_id: selectedData.user_id,
           email: formData.email,
           full_name: formData.user_name,
           roles_id: formData.rolesId,

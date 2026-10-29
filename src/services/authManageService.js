@@ -40,7 +40,7 @@ export function updateUserPassword(data) {
   return api.put("/api/v1/user/update", data);
 }
 
-// body: { email, full_name, roles_id, status } — status: 1 = Hoạt động, 0 = Khóa
+// body: { user_id, email, roles_id, status } — status: 1 = Hoạt động, 0 = Khóa
 export function updateUserInfo(data) {
   return api.put("/api/v1/user/update-info", data);
 }
