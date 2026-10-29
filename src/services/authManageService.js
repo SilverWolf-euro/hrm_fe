@@ -35,7 +35,12 @@ export function createUser(data) {
   return api.post("/api/v1/user/create", data);
 }
 
-// body: { email, password } — backend hiện chỉ hỗ trợ đổi mật khẩu theo email
+// body: { email, password } — đổi mật khẩu theo email
 export function updateUserPassword(data) {
   return api.put("/api/v1/user/update", data);
+}
+
+// body: { email, full_name, roles_id, status } — status: 1 = Hoạt động, 0 = Khóa
+export function updateUserInfo(data) {
+  return api.put("/api/v1/user/update-info", data);
 }
