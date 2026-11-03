@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getDecodedToken } from "../utils/jwt";
 import { login } from "../services/loginService";
+import { setPermissionsFromToken, clearPermissions } from "../utils/permissionStore";
 
 
 const Login = () => {
@@ -13,6 +14,7 @@ const Login = () => {
   React.useEffect(() => {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("userInfo");
+    clearPermissions();
   }, []);
 
   // Build Microsoft OAuth2 login URL dynamically with a random state
@@ -47,6 +49,7 @@ const Login = () => {
       if (data && data.access_token) {
         console.log("[Login] Đăng nhập thành công, nhận được token.");
         localStorage.setItem("accessToken", data.access_token);
+        setPermissionsFromToken(data.access_token);
         if (data.user) {
           console.log("[Login] Thông tin user từ API:", data.user);
           localStorage.setItem("userInfo", JSON.stringify(data.user));

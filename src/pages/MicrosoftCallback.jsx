@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { setPermissionsFromToken } from "../utils/permissionStore";
 
 export default function MicrosoftCallback() {
   const navigate = useNavigate();
@@ -70,6 +71,7 @@ export default function MicrosoftCallback() {
         // Lưu accessToken
         if (data?.accessToken || data?.access_token) {
           localStorage.setItem("accessToken", data.accessToken || data.access_token);
+          setPermissionsFromToken(data.accessToken || data.access_token);
         } else {
           setMessage("Không nhận được accessToken");
           setTimeout(() => navigate("/login"), 2000);

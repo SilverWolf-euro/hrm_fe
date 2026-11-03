@@ -1,12 +1,14 @@
 
 import axios from "axios";
 import jwt_decode from "jwt-decode";
+import { setPermissionsFromToken, clearPermissions } from "../utils/permissionStore";
 
 // ========================
 // LOGOUT FUNCTION
 // ========================
-const logout = () => {
+export const logout = () => {
   localStorage.removeItem("accessToken");
+  clearPermissions();
   window.location.href = "/login";
 };
 
@@ -35,7 +37,19 @@ const processQueue = (error, token = null) => {
 // ========================
 // FUNCTION REFRESH TOKEN
 // ========================
-const refreshAccessToken = async () => {
+// Dùng chung 1 promise để các nơi gọi đồng thời (interceptor, nạp quyền) chỉ refresh 1 lần
+let refreshPromise = null;
+
+export const refreshAccessToken = () => {
+  if (!refreshPromise) {
+    refreshPromise = doRefreshAccessToken().finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
+};
+
+const doRefreshAccessToken = async () => {
   const token = localStorage.getItem("accessToken");
   if (!token) {
     logout();
@@ -60,6 +74,8 @@ const refreshAccessToken = async () => {
 
   localStorage.setItem("accessToken", newToken);
   api.defaults.headers.common["Authorization"] = `Bearer ${newToken}`;
+  // Token mới mang quyền mới nhất từ DB => nạp lại vào RAM
+  setPermissionsFromToken(newToken);
 
   return newToken;
 };
@@ -124,6 +140,18 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+
+    // 403: quyền trong token có thể đã cũ => refreshToken lấy quyền mới, thử lại 1 lần
+    if (error.response?.status === 403 && !originalRequest._permRetry) {
+      originalRequest._permRetry = true;
+      try {
+        const newToken = await refreshAccessToken();
+        originalRequest.headers["Authorization"] = `Bearer ${newToken}`;
+        return api(originalRequest);
+      } catch (err) {
+        return Promise.reject(error);
+      }
+    }
 
     if (!error.response || error.response.status !== 401) {
       return Promise.reject(error);

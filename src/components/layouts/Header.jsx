@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { clearPermissions } from "../../utils/permissionStore";
 
 
 export default function Header() {
@@ -69,6 +70,7 @@ export default function Header() {
     console.log("Logout clicked");
     localStorage.removeItem("accessToken");
     localStorage.removeItem("userInfo");
+    clearPermissions();
     setShowUserMenu(false);
     navigate("/login");
   };
