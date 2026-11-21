@@ -1,5 +1,5 @@
 
-import { PersonalInfoForm } from "../components/personal-info-form.tsx";
+import EmployeeForm from "../components/EmployeeForm.jsx";
 
 import { useNavigate, useParams } from "react-router-dom";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -42,17 +42,12 @@ export default function Profile() {
     loadProfile(empId, false);
   }, [id, navigate, loadProfile]);
 
-  return (
-    <main className="min-h-screen bg-gray-50 py-8">
-      <div className="container mx-auto px-4">
-        {loading ? (
-          <div className="text-center text-gray-500 py-8">Đang tải dữ liệu...</div>
-        ) : error ? (
-          <div className="text-center text-red-500 py-8">{error}</div>
-          ) : (
-            <PersonalInfoForm profile={profile} isNew={!id} onSaved={handleSaved} />
-        )}
-      </div>
-    </main>
-  );
+  if (loading) {
+    return <div className="text-center text-gray-500 py-8">Đang tải dữ liệu...</div>;
+  }
+  if (error) {
+    return <div className="text-center text-red-500 py-8">{error}</div>;
+  }
+  // key theo id để form được làm mới hoàn toàn khi chuyển giữa các nhân viên
+  return <EmployeeForm key={id || "new"} profile={profile} isNew={!id} onSaved={handleSaved} />;
 }
