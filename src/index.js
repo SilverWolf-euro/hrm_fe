@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 
 // Styles
 import './assets/index.css';
+import './assets/hrm-ui.css';
 
 // Rồi mới import CSS từ thư viện
 import "primereact/resources/themes/lara-light-indigo/theme.css";

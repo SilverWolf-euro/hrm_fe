@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { getLeaveRequestDetail, approveOrRejectLeaveRequest } from "../services/leaveRequestService";
+import { getLeaveRequestDetail, approveOrRejectLeaveRequest, approveLeaveRequestV2, rejectLeaveRequestV2 } from "../services/leaveRequestService";
+import ApprovalTimeline, { FlowConfigErrorTag } from "../components/ApprovalTimeline";
+import { parseApiError, toast } from "../components/ui";
 
 const ROLE_FLOW = ["HR", "MANAGER"];
 const ROLE_LABELS = { HR: "Nhân sự", MANAGER: "Trưởng phòng" };
@@ -22,10 +24,44 @@ export default function LeaveRequestDetail({ code, userRole = "HR", onClose, onA
   const [error, setError] = useState("");
   const [localData, setLocalData] = useState(null);
 
+  // Map dữ liệu API sang localData (đơn V2: dùng approvalSteps của engine luồng duyệt mới)
+  const toLocal = (apiData) => ({
+    flowVersion: apiData.flowVersion,
+    approvalSteps: apiData.approvalSteps || [],
+    canApprove: !!apiData.canApprove,
+    flowConfigError: !!apiData.flowConfigError,
+    applicationCode: apiData.leave_code,
+    createdDate: apiData.created_date?.slice(0, 10),
+    employeeCode: apiData.employee_code,
+    name: apiData.employee_name,
+    department: apiData.department_name,
+    leaveType: apiData.leave_type,
+    leaveDays: apiData.total_days,
+    fromDate: apiData.from_date?.slice(0, 10),
+    toDate: apiData.to_date?.slice(0, 10),
+    leaveReason: apiData.reason,
+    status: apiData.status_display || mapStatus(apiData.status),
+    statusDisplay: apiData.status_display || mapStatus(apiData.status),
+    approvalHistory: apiData.approval_history?.map(h => ({
+      level: h.level,
+      status: mapStatus(h.status),
+      comment: h.comment || "",
+      position: h.position,
+      department: h.department,
+      approvalDate: h.approval_date ? h.approval_date.slice(0, 10) : "",
+      approverName: h.approver_name || "",
+      approverEmail: h.approver_email || "",
+    })) || [],
+  });
+
   // Lấy chi tiết đơn nghỉ phép từ API
   useEffect(() => {
     async function fetchDetail() {
       const apiData = await getLeaveRequestDetail(code);
+      if (apiData?.flowVersion === "V2") {
+        setLocalData(toLocal(apiData));
+        return;
+      }
       // Map dữ liệu API sang localData cho UI cũ
       setLocalData({
         applicationCode: apiData.leave_code,
@@ -89,6 +125,28 @@ export default function LeaveRequestDetail({ code, userRole = "HR", onClose, onA
       setError("Nhận xét tối đa 300 ký tự.");
       return;
     }
+    if (localData.flowVersion === "V2") {
+      try {
+        const res = showActionPopup === "APPROVED"
+          ? await approveLeaveRequestV2(code, actionComment)
+          : await rejectLeaveRequestV2(code, actionComment);
+        toast.success(res?.data?.message || "Lưu thành công");
+        setLocalData(toLocal(await getLeaveRequestDetail(code)));
+        const action = showActionPopup;
+        setShowActionPopup(null);
+        setActionComment("");
+        setError("");
+        if (action === "APPROVED" && onApprove) onApprove();
+        if (action === "REJECTED" && onReject) onReject();
+      } catch (e) {
+        // VD: "Đơn đã được xử lý bởi {tên}" (409) – hiển thị nguyên văn từ BE
+        const msg = parseApiError(e, "Có lỗi khi gửi duyệt/từ chối đơn!").message;
+        setError(msg);
+        toast.error(msg);
+        try { setLocalData(toLocal(await getLeaveRequestDetail(code))); } catch { /* giữ dữ liệu cũ */ }
+      }
+      return;
+    }
     try {
       await approveOrRejectLeaveRequest(code, showActionPopup, actionComment);
       // Sau khi thao tác thành công, reload lại chi tiết đơn
@@ -129,7 +187,7 @@ export default function LeaveRequestDetail({ code, userRole = "HR", onClose, onA
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-lg p-8 min-w-[600px] max-w-2xl relative">
+      <div className="bg-white rounded-lg shadow-lg p-8 min-w-[600px] max-w-2xl relative max-h-[92vh] overflow-y-auto">
         <button className="absolute top-2 right-2 text-gray-500" onClick={onClose}>×</button>
         <div className="flex justify-between items-center mb-4">
           <div className="font-bold text-2xl">Chi tiết đơn nghỉ # {localData.applicationCode}</div>
@@ -149,7 +207,14 @@ export default function LeaveRequestDetail({ code, userRole = "HR", onClose, onA
           </div>
         </div>
         <div className="mb-4">
-          <div className="font-semibold mb-2">Tiến trình duyệt</div>
+          <div className="font-semibold mb-2 flex items-center gap-2">
+            Tiến trình duyệt {localData.flowConfigError && <FlowConfigErrorTag />}
+          </div>
+          {localData.flowVersion === "V2" ? (
+            <div className="max-h-[45vh] overflow-y-auto pr-1">
+              <ApprovalTimeline steps={localData.approvalSteps} />
+            </div>
+          ) : (
           <div className="flex flex-col gap-2">
             {localData.approvalHistory && localData.approvalHistory.length > 0 ? (
               localData.approvalHistory.map((step, idx) => (
@@ -169,9 +234,29 @@ export default function LeaveRequestDetail({ code, userRole = "HR", onClose, onA
               <div className="text-xs text-gray-400">Chưa có tiến trình duyệt</div>
             )}
           </div>
+          )}
         </div>
+        {/* Đơn V2: BE quyết định ai được duyệt (canApprove) */}
+        {localData.flowVersion === "V2" && (() => {
+          if (localData.status === "Từ chối" || localData.status === "Đã duyệt") {
+            return (
+              <div className="flex gap-2 justify-end mt-4">
+                <span className={`rounded px-4 py-2 font-semibold ${localData.status === "Đã duyệt" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                  {localData.status}
+                </span>
+              </div>
+            );
+          }
+          if (!localData.canApprove) return null;
+          return (
+            <div className="flex gap-2 justify-end mt-4">
+              <button className="hrm-btn hrm-btn-danger" onClick={() => { setShowActionPopup('REJECTED'); setActionComment(""); setError(""); }}>Từ chối đơn</button>
+              <button className="hrm-btn hrm-btn-success" onClick={() => { setShowActionPopup('APPROVED'); setActionComment(""); setError(""); }}>Duyệt đơn</button>
+            </div>
+          );
+        })()}
         {/* Ẩn nút duyệt/từ chối nếu là đơn của chính mình, trừ khi forceShowAction */}
-        {(() => {
+        {localData.flowVersion !== "V2" && (() => {
           // Kiểm tra nếu vai trò hiện tại đã duyệt hoặc từ chối trong approvalHistory thì không hiện nút
           const hasApprovedOrRejected = localData.approvalHistory && localData.approvalHistory.some(
             step => step.position === ROLE_LABELS[userRole] && (step.status === "Đã duyệt" || step.status === "Từ chối")

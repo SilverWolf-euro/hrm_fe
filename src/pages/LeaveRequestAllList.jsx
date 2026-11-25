@@ -253,6 +253,11 @@ export default function LeaveRequestAllList() {
                       <span className={`inline-block rounded-md px-3 py-1 text-xs font-semibold ${STATUS_COLORS[item.statusDisplay] || "bg-gray-200 text-gray-700"}`}>
                         {item.statusDisplay}
                       </span>
+                      {item.flowConfigError && (
+                        <div className="mt-1">
+                          <span className="hrm-pill hrm-pill-danger">Lỗi cấu hình luồng duyệt</span>
+                        </div>
+                      )}
                     </td>
                     <td className="border px-2 py-1 text-center">
                       <button className="text-blue-600 hover:text-blue-900" title="Xem chi tiết" onClick={() => setViewCode(item.leave_code)}>

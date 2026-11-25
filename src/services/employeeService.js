@@ -10,6 +10,19 @@ function getList({ attendance_code = '', full_name = '', work_location = 2 }) {
   }).then(res => res.data);
 }
 
+// 1b. Hồ sơ nhân sự (Spec HRM UI v1 §8.5)
+// params: { status: ALL|RESIGNED|PROBATION|OFFICIAL, departmentId, includeChildren, keyword, workLocation, page, size }
+function searchDirectory(params = {}) {
+  const clean = Object.fromEntries(Object.entries(params).filter(([, v]) => v !== "" && v != null));
+  return api.get('/api/v1/employee/search', { params: clean }).then(res => res.data?.data);
+}
+
+// → { all, resigned, probation, official }
+function countDirectory(params = {}) {
+  const clean = Object.fromEntries(Object.entries(params).filter(([, v]) => v !== "" && v != null));
+  return api.get('/api/v1/employee/counts', { params: clean }).then(res => res.data?.data);
+}
+
 // 2. Chi tiết nhân viên theo id
 function getDetail(id) {
   return api.get(`/api/v1/employee/${id}`).then(res => res.data);
@@ -191,6 +204,8 @@ function getFilter({ force = false } = {}) {
 
 const employeeService = {
   getList,
+  searchDirectory,
+  countDirectory,
   getFilter,
   getDetail,
   getRelatives,

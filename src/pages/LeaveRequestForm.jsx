@@ -134,7 +134,13 @@ export default function LeaveRequestForm() {
       alert("Gửi đơn nghỉ thành công!");
       navigate("/leave-requests-sent");
     } catch (err) {
-      setError("Gửi đơn thất bại. Vui lòng thử lại!");
+      const data = err?.response?.data;
+      if (data?.code === "APPROVAL_FLOW_CONFIG_ERROR") {
+        // §6.1: không tìm được luồng / người duyệt → chặn gửi
+        setError(`${data.message || "Lỗi cấu hình luồng duyệt"}. Vui lòng liên hệ quản trị viên để cập nhật cấu hình.`);
+      } else {
+        setError(data?.message || "Gửi đơn thất bại. Vui lòng thử lại!");
+      }
     }
   };
 

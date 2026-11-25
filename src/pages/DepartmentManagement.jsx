@@ -1,132 +1,106 @@
-import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { getDepartments, deleteDepartment } from "../services/departmentService";
+// Quản trị › Phòng ban (Spec HRM UI v1 §4.1)
+import React, { useCallback, useEffect, useState } from "react";
+import { AREA_OPTIONS, areaShortLabel, searchDepartments } from "../services/departmentService";
 import DepartmentModal from "../components/DepartmentModal";
+import { Icon, PageHeader, Pagination, SearchInput, StatusBadge, TableBodyState, parseApiError, toast } from "../components/ui";
+
+const PAGE_SIZE = 20;
 
 export default function DepartmentManagement() {
-  const navigate = useNavigate();
-  const [departments, setDepartments] = useState([]);
+  const [filters, setFilters] = useState({ keyword: "", area: "", isActive: "" });
+  const [page, setPage] = useState(1);
+  const [data, setData] = useState({ items: [], total: 0 });
   const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState("");
+  const [modal, setModal] = useState({ open: false, id: null });
 
-  const fetch = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await getDepartments();
-      const list = Array.isArray(res) ? res : (res.data || res || []);
-      setDepartments(list);
-    } catch (e) {
-      setDepartments([]);
+      const res = await searchDepartments({ ...filters, page, size: PAGE_SIZE });
+      setData({ items: res?.items || [], total: res?.total || 0 });
+    } catch (err) {
+      toast.error(parseApiError(err).message);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  };
+  }, [filters, page]);
 
   useEffect(() => {
-    fetch();
-  }, []);
+    load();
+  }, [load]);
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Bạn có chắc chắn muốn xóa phòng ban này?")) return;
-    try {
-      await deleteDepartment(id);
-      fetch();
-    } catch (e) {
-      alert("Xóa thất bại");
-    }
+  const setFilter = (k, v) => {
+    setFilters((f) => ({ ...f, [k]: v }));
+    setPage(1);
   };
-
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState("view");
-  const [modalDeptId, setModalDeptId] = useState(null);
-
-  const openCreate = () => {
-    setModalMode('create');
-    setModalDeptId(null);
-    setModalOpen(true);
-  };
-
-  const openEdit = (id) => {
-    setModalMode('edit');
-    setModalDeptId(id);
-    setModalOpen(true);
-  };
-
-  const openView = (id) => {
-    setModalMode('view');
-    setModalDeptId(id);
-    setModalOpen(true);
-  };
-
-  const filtered = departments.filter(d => {
-    if (!search) return true;
-    const s = search.toLowerCase();
-    return (d.name_vi || d.name || d.code || "").toLowerCase().includes(s) || (d.code || "").toLowerCase().includes(s);
-  });
 
   return (
-    <div className="p-6 bg-white rounded shadow mt-8">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold">Quản lý phòng ban</h2>
-        <div className="flex items-center gap-2">
-          <input
-            placeholder="Tìm kiếm mã hoặc tên phòng ban"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="border rounded px-3 py-2"
-            style={{ minWidth: 280 }}
-          />
-          <button className="bg-blue-600 text-white px-4 py-2 rounded" onClick={openCreate}>
-            + Thêm phòng ban
+    <div>
+      <PageHeader
+        title="Quản lý phòng ban"
+        actions={
+          <button className="hrm-btn hrm-btn-primary" onClick={() => setModal({ open: true, id: null })}>
+            <Icon.Plus /> Thêm phòng ban
           </button>
-        </div>
+        }
+      />
+
+      <div className="hrm-filterbar">
+        <select className="hrm-select" value={filters.area} onChange={(e) => setFilter("area", e.target.value)}>
+          <option value="">Tất cả khu vực</option>
+          {AREA_OPTIONS.map((a) => (
+            <option key={a.value} value={a.value}>
+              {a.label}
+            </option>
+          ))}
+        </select>
+        <select className="hrm-select" value={filters.isActive} onChange={(e) => setFilter("isActive", e.target.value)}>
+          <option value="">Tất cả trạng thái</option>
+          <option value="true">Hoạt động</option>
+          <option value="false">Ngừng hoạt động</option>
+        </select>
+        <SearchInput value={filters.keyword} placeholder="Tìm kiếm phòng ban..." onChange={(v) => setFilter("keyword", v)} />
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="min-w-full border text-sm">
+      <div className="hrm-table-wrap">
+        <table className="hrm-table">
           <thead>
-            <tr className="bg-gray-100">
-              <th className="border px-2 py-2 text-left">Mã</th>
-              <th className="border px-2 py-2 text-left">Tên phòng ban</th>
-              <th className="border px-2 py-2 text-left">Phòng ban cha</th>
-              <th className="border px-2 py-2 text-left">Khu vực</th>
-              <th className="border px-2 py-2 text-center">Thao tác</th>
+            <tr>
+              <th>Tên phòng ban</th>
+              <th>Phòng ban cha</th>
+              <th style={{ width: 150 }}>Khu vực</th>
+              <th style={{ width: 120, textAlign: "center" }}>SL chức vụ</th>
+              <th style={{ width: 160 }}>Trạng thái</th>
+              <th style={{ width: 90 }}>Thao tác</th>
             </tr>
           </thead>
           <tbody>
-            {loading ? (
-              <tr><td colSpan={5} className="text-center">Đang tải...</td></tr>
-            ) : filtered.length === 0 ? (
-              <tr><td colSpan={5} className="text-center text-gray-500">Không có dữ liệu.</td></tr>
-            ) : (
-              filtered.map(dep => (
-                <tr key={dep.id}>
-                  <td className="border px-2 py-2">{dep.code}</td>
-                  <td className="border px-2 py-2">
-                    <button className="text-left text-blue-600 underline" onClick={() => openView(dep.id)}>
-                      {dep.name_vi || dep.name || '-'}
+            <TableBodyState loading={loading} empty={!data.items.length} colSpan={6} />
+            {!loading &&
+              data.items.map((d) => (
+                <tr key={d.id}>
+                  <td className="font-semibold">{d.name}</td>
+                  <td>{d.parentName || "-"}</td>
+                  <td>{areaShortLabel(d.area)}</td>
+                  <td style={{ textAlign: "center" }}>
+                    <span className="hrm-count-badge">{d.positionCount || 0}</span>
+                  </td>
+                  <td>
+                    <StatusBadge active={d.isActive} />
+                  </td>
+                  <td>
+                    <button className="hrm-icon-btn" title="Sửa" onClick={() => setModal({ open: true, id: d.id })}>
+                      <Icon.Pencil />
                     </button>
                   </td>
-                  <td className="border px-2 py-2">{Array.isArray(dep.parent) && dep.parent.length ? dep.parent.join(', ') : (dep.parent || '-')}</td>
-                  <td className="border px-2 py-2">{dep.area || '-'}</td>
-                  <td className="border px-2 py-2 text-center">
-                    <button className="text-blue-600 mr-2" title="Chỉnh sửa" onClick={() => openEdit(dep.id)}>✏️</button>
-                    {!(modalOpen && modalMode === 'view' && modalDeptId === dep.id) && (
-                      <button className="text-red-600" title="Xóa" onClick={() => handleDelete(dep.id)}>🗑️</button>
-                    )}
-                  </td>
                 </tr>
-              ))
-            )}
+              ))}
           </tbody>
         </table>
       </div>
-      <DepartmentModal
-        open={modalOpen}
-        mode={modalMode}
-        departmentId={modalDeptId}
-        onClose={() => setModalOpen(false)}
-        onSaved={() => fetch()}
-      />
+      <Pagination page={page} size={PAGE_SIZE} total={data.total} onChange={setPage} />
+
+      <DepartmentModal open={modal.open} departmentId={modal.id} onClose={() => setModal({ open: false, id: null })} onSaved={load} />
     </div>
   );
 }

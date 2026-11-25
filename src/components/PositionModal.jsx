@@ -1,136 +1,161 @@
-import React, { useEffect, useState } from "react";
+// Modal Thêm / Sửa chức vụ (Spec HRM UI v1 §3.2)
+import React, { useEffect, useMemo, useState } from "react";
 import positionService from "../services/positionService";
+import { Modal, SubmitButton, parseApiError, toast } from "./ui";
 
-export default function PositionModal({ open, mode = "view", positionId, onClose, onSaved }) {
+const LEVELS = Array.from({ length: 10 }, (_, i) => i + 1);
+const EMPTY = { name: "", level: 1, isActive: true };
+
+export default function PositionModal({ open, positionId, onClose, onSaved }) {
+  const isEdit = !!positionId;
+  const [form, setForm] = useState(EMPTY);
+  const [initial, setInitial] = useState(EMPTY);
+  const [meta, setMeta] = useState({ code: "", usedInFlows: 0 });
+  const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ s_code: "", s_name_vi: "", s_parent_code: [], n_level: 0 });
-  const [allPositions, setAllPositions] = useState([]);
-  const [selectedParentToAdd, setSelectedParentToAdd] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-
-    // load all positions for parent selection
-    positionService.getPositions()
-      .then(res => {
-        const list = (res && res.data && res.data.data) || (res && res.data) || res || [];
-        setAllPositions(Array.isArray(list) ? list : []);
-      })
-      .catch(() => setAllPositions([]));
-
-    if ((mode === "edit" || mode === "view") && positionId) {
-      setLoading(true);
-      positionService.getPositionById(positionId)
-        .then(res => {
-          const data = (res && res.data && res.data.data) || (res && res.data) || res || {};
-          setForm({
-            s_code: data.s_code || data.code || "",
-            s_name_vi: data.s_name_vi || data.s_name || data.name_vi || "",
-            s_parent_code: Array.isArray(data.s_parent_code) ? data.s_parent_code : (data.s_parent_code ? [data.s_parent_code] : []),
-            n_level: typeof data.n_level === 'number' ? data.n_level : (data.n_level || 0),
-          });
-        })
-        .catch(() => {})
-        .finally(() => setLoading(false));
-    } else if (mode === "create") {
-      setForm({ s_code: "", s_name_vi: "", s_parent_code: [], n_level: 0 });
+    setErrors({});
+    if (!isEdit) {
+      setForm(EMPTY);
+      setInitial(EMPTY);
+      setMeta({ code: "", usedInFlows: 0 });
+      return;
     }
-  }, [open, mode, positionId]);
-
-  const handleChange = (field, value) => setForm(f => ({ ...f, [field]: value }));
-
-  const addParent = (code) => {
-    if (!code) return;
-    setForm(f => {
-      const arr = Array.isArray(f.s_parent_code) ? [...f.s_parent_code] : [];
-      if (!arr.includes(code)) arr.push(code);
-      return { ...f, s_parent_code: arr };
-    });
-    setSelectedParentToAdd("");
-  };
-
-  const removeParent = (code) => {
-    setForm(f => ({ ...f, s_parent_code: (f.s_parent_code || []).filter(p => p !== code) }));
-  };
-
-  const handleSubmit = async (e) => {
-    e && e.preventDefault();
-    if (mode === "view") { onClose && onClose(); return; }
-    if (!form.s_code || !form.s_name_vi) { alert("Vui lòng nhập mã và tên chức vụ."); return; }
     setLoading(true);
-    try {
-      const payload = { s_code: form.s_code, s_name_vi: form.s_name_vi, s_parent_code: form.s_parent_code, n_level: form.n_level };
-      if (mode === "create") await positionService.createPosition(payload);
-      else if (mode === "edit" && positionId) await positionService.updatePosition(positionId, payload);
-      onSaved && onSaved();
-      onClose && onClose();
-    } catch (err) {
-      alert("Lỗi khi lưu chức vụ.");
-    } finally {
-      setLoading(false);
-    }
+    positionService
+      .getPositionById(positionId)
+      .then((p) => {
+        const f = { name: p?.name || "", level: p?.level || 1, isActive: !!p?.isActive };
+        setForm(f);
+        setInitial(f);
+        setMeta({ code: p?.code || "", usedInFlows: p?.usedInFlows || 0 });
+      })
+      .catch((err) => toast.error(parseApiError(err).message))
+      .finally(() => setLoading(false));
+  }, [open, positionId, isEdit]);
+
+  const dirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(initial), [form, initial]);
+  const showUsageWarning =
+    isEdit && meta.usedInFlows > 0 && (form.level !== initial.level || (initial.isActive && !form.isActive));
+
+  const set = (k, v) => {
+    setForm((f) => ({ ...f, [k]: v }));
+    setErrors((e) => ({ ...e, [k]: undefined }));
   };
 
-  if (!open) return null;
+  const validate = () => {
+    const e = {};
+    const name = form.name.trim();
+    if (!name) e.name = "Vui lòng nhập tên chức vụ";
+    else if (name.length > 50) e.name = "Tên chức vụ tối đa 50 ký tự";
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
 
-  const title = mode === "create" ? "Tạo chức vụ" : mode === "edit" ? "Chỉnh sửa chức vụ" : "Chi tiết chức vụ";
+  const submit = async () => {
+    if (saving || !validate()) return;
+    setSaving(true);
+    const body = { name: form.name.trim(), level: Number(form.level), isActive: form.isActive };
+    try {
+      if (isEdit) await positionService.updatePosition(positionId, body);
+      else await positionService.createPosition(body);
+      toast.success("Lưu thành công");
+      onSaved && onSaved();
+      onClose();
+    } catch (err) {
+      const pe = parseApiError(err);
+      const fieldErrors = {};
+      pe.errors.forEach((x) => {
+        if (x.field && !fieldErrors[x.field]) fieldErrors[x.field] = x.message;
+      });
+      if (Object.keys(fieldErrors).length) setErrors(fieldErrors);
+      toast.error(pe.message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-      <div className="bg-white rounded shadow-lg p-6 w-[600px] max-h-[90vh] overflow-y-auto relative">
-        <button className="absolute top-2 right-2 text-gray-500" onClick={onClose}>&times;</button>
-        <h2 className="text-lg font-bold mb-4">{title}</h2>
-        {loading ? (
-          <div>Đang tải...</div>
-        ) : (
-          <form onSubmit={handleSubmit}>
-            <div className="mb-3">
-              <label className="block mb-1">Mã chức vụ</label>
-              <input className="border rounded px-2 py-1 w-full" value={form.s_code} onChange={e => handleChange('s_code', e.target.value)} disabled={mode === 'view'} />
+    <Modal
+      open={open}
+      title={isEdit ? "Cập nhật chức vụ" : "Thêm chức vụ mới"}
+      width={520}
+      dirty={dirty}
+      onClose={onClose}
+      footer={
+        <>
+          <button className="hrm-btn hrm-btn-secondary" onClick={() => (!dirty || window.confirm("Bạn có muốn bỏ thay đổi?")) && onClose()}>
+            Hủy
+          </button>
+          <SubmitButton loading={saving} disabled={loading} onClick={submit}>
+            Lưu chức vụ
+          </SubmitButton>
+        </>
+      }
+    >
+      {loading ? (
+        <div className="py-10 text-center text-gray-400">Đang tải...</div>
+      ) : (
+        <form
+          className="flex flex-col gap-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            submit();
+          }}
+        >
+          {isEdit && (
+            <div>
+              <label className="hrm-label">Mã chức vụ</label>
+              <input className="hrm-input" value={meta.code} readOnly />
             </div>
-            <div className="mb-3">
-              <label className="block mb-1">Tên chức vụ</label>
-              <input className="border rounded px-2 py-1 w-full" value={form.s_name_vi} onChange={e => handleChange('s_name_vi', e.target.value)} disabled={mode === 'view'} />
+          )}
+          <div>
+            <label className="hrm-label">
+              Tên chức vụ<span className="hrm-required">*</span>
+            </label>
+            <input
+              className={`hrm-input ${errors.name ? "is-invalid" : ""}`}
+              placeholder="VD: Trưởng phòng, Tổ trưởng..."
+              value={form.name}
+              maxLength={60}
+              autoFocus
+              onChange={(e) => set("name", e.target.value)}
+            />
+            {errors.name && <div className="hrm-field-error">{errors.name}</div>}
+          </div>
+          <div>
+            <label className="hrm-label">
+              Cấp bậc (Level)<span className="hrm-required">*</span>
+            </label>
+            <select
+              className={`hrm-select ${errors.level ? "is-invalid" : ""}`}
+              value={form.level}
+              onChange={(e) => set("level", Number(e.target.value))}
+            >
+              {LEVELS.map((l) => (
+                <option key={l} value={l}>
+                  Cấp {l}
+                </option>
+              ))}
+            </select>
+            <div className="text-xs text-gray-500 mt-1">Cấp 1 là cao nhất, số càng lớn cấp càng thấp.</div>
+            {errors.level && <div className="hrm-field-error">{errors.level}</div>}
+          </div>
+          <label className="flex items-center gap-2 text-sm font-semibold cursor-pointer w-fit">
+            <input type="checkbox" className="hrm-checkbox" checked={form.isActive} onChange={(e) => set("isActive", e.target.checked)} />
+            Hoạt động
+          </label>
+          {showUsageWarning && (
+            <div className="hrm-alert-warning">
+              Chức vụ đang được dùng trong {meta.usedInFlows} luồng duyệt. Thay đổi cấp bậc có thể ảnh hưởng tới luồng duyệt.
             </div>
-            <div className="mb-3">
-              <label className="block mb-1">Chức vụ cha</label>
-              {mode !== 'view' ? (
-                <div className="flex gap-2 items-center">
-                  <select className="border rounded px-2 py-1 flex-1" value={selectedParentToAdd} onChange={e => setSelectedParentToAdd(e.target.value)}>
-                    <option value="">-- Chọn chức vụ --</option>
-                    {allPositions.map(p => (
-                      <option key={p.s_code || p.id} value={p.s_code}>{(p.s_name_vi || p.s_name_en || p.s_code) + ' (' + (p.s_code || p.id) + ')'}</option>
-                    ))}
-                  </select>
-                  <button type="button" className="px-3 py-1 bg-gray-200 rounded" onClick={() => addParent(selectedParentToAdd)}>Thêm</button>
-                </div>
-              ) : (
-                <div className="text-sm text-gray-600">{(form.s_parent_code || []).join(', ') || '-'}</div>
-              )}
-              <div className="mt-2 flex flex-wrap gap-2">
-                {(form.s_parent_code || []).map(code => {
-                  const pos = allPositions.find(p => (p.s_code || p.id) === code) || {};
-                  const label = pos.s_name_vi || pos.s_name_en || code;
-                  return (
-                    <div key={code} className="px-2 py-1 bg-blue-100 text-blue-800 rounded flex items-center gap-2">
-                      <span>{label}</span>
-                      {mode !== 'view' && (<button type="button" className="text-sm text-gray-600" onClick={() => removeParent(code)}>x</button>)}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-            <div className="mb-3">
-              <label className="block mb-1">Cấp bậc (n_level)</label>
-              <input type="number" className="border rounded px-2 py-1 w-32" value={form.n_level} onChange={e => handleChange('n_level', parseInt(e.target.value || '0', 10))} disabled={mode === 'view'} />
-            </div>
-            <div className="flex justify-end gap-2 mt-4">
-              <button type="button" className="px-4 py-2 rounded border" onClick={onClose}>Hủy</button>
-              {mode !== 'view' ? (<button type="submit" className="px-4 py-2 rounded bg-blue-600 text-white">{loading ? 'Đang lưu...' : 'Lưu'}</button>) : (<button type="button" className="px-4 py-2 rounded bg-gray-200" onClick={onClose}>Đóng</button>)}
-            </div>
-          </form>
-        )}
-      </div>
-    </div>
+          )}
+          <button type="submit" hidden />
+        </form>
+      )}
+    </Modal>
   );
 }

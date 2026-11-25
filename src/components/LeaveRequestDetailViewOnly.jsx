@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { getLeaveRequestDetail } from "../services/leaveRequestService";
+import ApprovalTimeline, { FlowConfigErrorTag } from "./ApprovalTimeline";
 
 const STATUS_COLORS = {
   "Chờ duyệt": "bg-gray-400 text-white",
@@ -26,6 +27,9 @@ export default function LeaveRequestDetailViewOnly({ code, onClose, currentUserC
     async function fetchDetail() {
       const apiData = await getLeaveRequestDetail(code);
       setLocalData({
+        flowVersion: apiData.flowVersion,
+        approvalSteps: apiData.approvalSteps || [],
+        flowConfigError: !!apiData.flowConfigError,
         applicationCode: apiData.leave_code,
         createdDate: apiData.created_date?.slice(0, 10),
         employeeCode: apiData.employee_code,
@@ -59,7 +63,7 @@ export default function LeaveRequestDetailViewOnly({ code, onClose, currentUserC
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-lg p-8 min-w-[600px] max-w-2xl relative">
+      <div className="bg-white rounded-lg shadow-lg p-8 min-w-[600px] max-w-2xl relative max-h-[92vh] overflow-y-auto">
         <button className="absolute top-2 right-2 text-gray-500" onClick={onClose}>×</button>
         <div className="flex justify-between items-center mb-4">
           <div className="font-bold text-2xl">Chi tiết đơn nghỉ # {localData.applicationCode}</div>
@@ -106,7 +110,14 @@ export default function LeaveRequestDetailViewOnly({ code, onClose, currentUserC
           </div>
         </div>
         <div className="mb-4">
-          <div className="font-semibold mb-2">Tiến trình duyệt</div>
+          <div className="font-semibold mb-2 flex items-center gap-2">
+            Tiến trình duyệt {localData.flowConfigError && <FlowConfigErrorTag />}
+          </div>
+          {localData.flowVersion === "V2" ? (
+            <div className="max-h-[45vh] overflow-y-auto pr-1">
+              <ApprovalTimeline steps={localData.approvalSteps} />
+            </div>
+          ) : (
           <div className="flex flex-col gap-2">
             {localData.approvalHistory && localData.approvalHistory.length > 0 ? (
               localData.approvalHistory.map((step, idx) => (
@@ -126,6 +137,7 @@ export default function LeaveRequestDetailViewOnly({ code, onClose, currentUserC
               <div className="text-xs text-gray-400">Chưa có tiến trình duyệt</div>
             )}
           </div>
+          )}
         </div>
       </div>
     </div>

@@ -35,6 +35,20 @@ export function approveOrRejectLeaveRequest(code, action, comment) {
   });
 }
 
+// Engine luồng duyệt mới (Spec HRM UI v1 §8.4)
+export function approveLeaveRequestV2(code, note) {
+  return api.post(`/api/v1/leave-requests/${code}/approve`, { note: note || "" });
+}
+
+export function rejectLeaveRequestV2(code, note) {
+  return api.post(`/api/v1/leave-requests/${code}/reject`, { note });
+}
+
+export async function getPendingMyApproval({ page = 1, size = 20 } = {}) {
+  const res = await api.get("/api/v1/leave-requests/pending-my-approval", { params: { page, size } });
+  return res.data?.data || { items: [], total: 0, page, size };
+}
+
 export function recallLeaveRequest(code) {
   return api.patch(`/api/v1/leave-requests/${code}/recall`);
 }

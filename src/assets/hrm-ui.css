@@ -1,0 +1,457 @@
+/* =====================================================================
+   HRM UI v1 – Design system (Spec §1)
+   Token + class dùng chung cho mọi màn hình trong layout mới.
+   ===================================================================== */
+:root {
+  --color-header-bg: #1d4ed8;
+  --color-primary: #1d5cff;
+  --color-primary-hover: #1749d1;
+  --color-primary-soft: #eaf0ff;
+  --color-success-text: #15803d;
+  --color-success-bg: #dcfce7;
+  --color-muted-text: #6b7280;
+  --color-muted-bg: #f1f2f4;
+  --color-danger: #dc2626;
+  --color-warning-text: #92400e;
+  --color-warning-bg: #fef3c7;
+  --color-page-bg: #f6f7f9;
+  --color-border: #e5e7eb;
+  --color-table-head: #f8f9fb;
+  --color-text: #111827;
+  --radius-control: 8px;
+  --radius-card: 12px;
+  --font-sans: "Inter", "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.hrm-app,
+.hrm-app button,
+.hrm-app input,
+.hrm-app select,
+.hrm-app textarea {
+  font-family: var(--font-sans);
+}
+
+.hrm-app {
+  color: var(--color-text);
+  background: var(--color-page-bg);
+}
+
+/* ---------- Page header ---------- */
+.hrm-breadcrumb {
+  font-size: 12px;
+  color: var(--color-muted-text);
+  margin-bottom: 4px;
+}
+.hrm-page-title {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 32px;
+  margin: 0;
+}
+
+/* ---------- Buttons ---------- */
+.hrm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: var(--radius-control);
+  font-size: 14px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.hrm-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.hrm-btn-primary {
+  background: var(--color-primary);
+  color: #fff;
+}
+.hrm-btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+.hrm-btn-secondary {
+  background: var(--color-muted-bg);
+  color: #374151;
+}
+.hrm-btn-secondary:hover:not(:disabled) {
+  background: #e5e7eb;
+}
+.hrm-btn-outline {
+  background: #fff;
+  color: #374151;
+  border-color: var(--color-border);
+}
+.hrm-btn-outline:hover:not(:disabled) {
+  background: #f9fafb;
+}
+.hrm-btn-danger {
+  background: var(--color-danger);
+  color: #fff;
+}
+.hrm-btn-success {
+  background: #16a34a;
+  color: #fff;
+}
+.hrm-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-control);
+  color: var(--color-primary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+.hrm-icon-btn:hover:not(:disabled) {
+  background: var(--color-primary-soft);
+}
+.hrm-icon-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ---------- Form controls ---------- */
+.hrm-input,
+.hrm-select {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  font-size: 14px;
+  background: #fff;
+  color: var(--color-text);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.hrm-select {
+  padding-right: 32px;
+}
+.hrm-input:focus,
+.hrm-select:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(29, 92, 255, 0.15);
+}
+.hrm-input[readonly] {
+  background: var(--color-muted-bg);
+  color: var(--color-muted-text);
+}
+.hrm-input.is-invalid,
+.hrm-select.is-invalid {
+  border-color: var(--color-danger);
+}
+.hrm-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: #1f2937;
+}
+.hrm-required {
+  color: var(--color-danger);
+  margin-left: 2px;
+}
+.hrm-field-error {
+  color: var(--color-danger);
+  font-size: 12px;
+  margin-top: 4px;
+}
+.hrm-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+/* ---------- Filter bar ---------- */
+.hrm-filterbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.hrm-filterbar .hrm-select {
+  width: 160px;
+}
+.hrm-search {
+  position: relative;
+  flex: 1;
+  min-width: 220px;
+}
+.hrm-search svg {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9ca3af;
+  width: 16px;
+  height: 16px;
+}
+.hrm-search .hrm-input {
+  padding-left: 36px;
+}
+
+/* ---------- Card / table ---------- */
+.hrm-card {
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+.hrm-table-wrap {
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  overflow: auto;
+}
+.hrm-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 14px;
+}
+.hrm-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-table-head);
+  font-weight: 600;
+  text-align: left;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+  color: #374151;
+}
+.hrm-table tbody td {
+  padding: 0 16px;
+  height: 56px;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+.hrm-table.is-compact tbody td {
+  height: 40px;
+}
+.hrm-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.hrm-table tbody tr:hover td {
+  background: #fafbff;
+}
+.hrm-empty {
+  text-align: center;
+  color: var(--color-muted-text);
+  padding: 40px 16px !important;
+  height: auto !important;
+}
+.hrm-skeleton {
+  height: 14px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #f1f2f4 25%, #e5e7eb 37%, #f1f2f4 63%);
+  background-size: 400% 100%;
+  animation: hrm-skeleton 1.2s ease infinite;
+}
+@keyframes hrm-skeleton {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+/* ---------- Badges / pills ---------- */
+.hrm-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.hrm-pill-success {
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+}
+.hrm-pill-muted {
+  background: var(--color-muted-bg);
+  color: var(--color-muted-text);
+}
+.hrm-pill-level {
+  background: var(--color-muted-bg);
+  color: #111827;
+  font-weight: 700;
+}
+.hrm-pill-primary {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+.hrm-pill-danger {
+  background: #fee2e2;
+  color: var(--color-danger);
+}
+.hrm-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-weight: 700;
+  font-size: 13px;
+}
+
+/* ---------- Pagination ---------- */
+.hrm-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 4px;
+  font-size: 14px;
+  color: #374151;
+}
+.hrm-page-btn {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--color-border);
+  background: #fff;
+  cursor: pointer;
+  font-size: 13px;
+}
+.hrm-page-btn.is-active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+.hrm-page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ---------- Modal ---------- */
+.hrm-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.45);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.hrm-modal {
+  background: #fff;
+  border-radius: var(--radius-card);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+.hrm-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-border);
+}
+.hrm-modal-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+}
+.hrm-modal-body {
+  padding: 20px;
+  overflow: auto;
+  flex: 1;
+}
+.hrm-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--color-border);
+}
+
+/* ---------- Alerts ---------- */
+.hrm-alert-warning {
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
+  border: 1px solid #fde68a;
+  border-radius: var(--radius-control);
+  padding: 10px 12px;
+  font-size: 13px;
+}
+.hrm-alert-error {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  border-radius: var(--radius-control);
+  padding: 12px 14px;
+  font-size: 13px;
+}
+
+/* ---------- Toast ---------- */
+.hrm-toast-host {
+  position: fixed;
+  top: 52px;
+  right: 16px;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+.hrm-toast {
+  pointer-events: auto;
+  min-width: 260px;
+  max-width: 420px;
+  padding: 12px 14px;
+  border-radius: var(--radius-control);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  font-size: 14px;
+  background: #fff;
+  border-left: 4px solid var(--color-primary);
+  animation: hrm-toast-in 0.2s ease-out;
+}
+.hrm-toast.is-success {
+  border-left-color: #16a34a;
+}
+.hrm-toast.is-error {
+  border-left-color: var(--color-danger);
+}
+@keyframes hrm-toast-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- Spinner ---------- */
+.hrm-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: hrm-spin 0.7s linear infinite;
+}
+@keyframes hrm-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ---------- Bọc các màn cũ (§10, H): đồng bộ style cơ bản ---------- */
+.hrm-legacy-content h1,
+.hrm-legacy-content h2.page-title {
+  font-family: var(--font-sans);
+}

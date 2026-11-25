@@ -1,232 +1,179 @@
-// Header.jsx
-
-import React, { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+// Header + mega-menu (Spec HRM UI v1 §2.1). Render từ MENU dùng chung với Sidebar.
+import React, { useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { clearPermissions } from "../../utils/permissionStore";
+import { usePermissions } from "../../utils/auth";
+import { DEFAULT_ROUTE, filterMenu, findMenuContext } from "../../constants/menuConfig";
+import { Icon } from "../ui";
 
+function readUserInfo() {
+  try {
+    return JSON.parse(localStorage.getItem("userInfo") || "{}") || {};
+  } catch {
+    return {};
+  }
+}
 
-export default function Header() {
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [showUserMenu, setShowUserMenu] = useState(false);
-  const [currentDate, setCurrentDate] = useState("");
-  const [currentTime, setCurrentTime] = useState("");
-
+export default function Header({ onToggleSidebar }) {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const { hasPermission } = usePermissions();
+  const modules = filterMenu(hasPermission);
+  const current = findMenuContext(pathname);
 
-  const [notifications, setNotifications] = useState([]);
+  const [openKey, setOpenKey] = useState(null);
+  const [userOpen, setUserOpen] = useState(false);
+  const closeTimer = useRef(null);
+  const rootRef = useRef(null);
+  const user = readUserInfo();
+  const fullName = user.FullName || "";
+  const initials = fullName
+    .split(" ")
+    .filter(Boolean)
+    .slice(-2)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase();
 
-  // Lấy tên người dùng từ localStorage key 'userInfo'
-  const [fullName, setFullName] = useState("");
   useEffect(() => {
-    try {
-      const userInfoStr = localStorage.getItem("userInfo");
-      if (userInfoStr) {
-        const userInfo = JSON.parse(userInfoStr);
-        if (userInfo && userInfo.FullName) {
-          setFullName(userInfo.FullName);
-        }
+    setOpenKey(null);
+    setUserOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    const onDoc = (e) => {
+      if (rootRef.current && !rootRef.current.contains(e.target)) {
+        setOpenKey(null);
+        setUserOpen(false);
       }
-    } catch {}
+    };
+    const onKey = (e) => e.key === "Escape" && setOpenKey(null);
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
   }, []);
 
-  const userMenuItems = [
-    { icon: "👤", label: "Hồ sơ", action: "profile" },
-    { icon: "⚙️", label: "Cài đặt", action: "settings" },
-    { icon: "🔒", label: "Đổi mật khẩu", action: "changePassword" },
-  ];
-
-  const unreadNotifications = useMemo(
-    () => notifications.filter((n) => !n.read).length,
-    [notifications]
-  );
-
-  const toggleNotifications = () => {
-    setShowNotifications(!showNotifications);
-    setShowUserMenu(false);
+  const openMenu = (key) => {
+    clearTimeout(closeTimer.current);
+    setOpenKey(key);
+    setUserOpen(false);
   };
-
-  const toggleUserMenu = () => {
-    setShowUserMenu(!showUserMenu);
-    setShowNotifications(false);
-  };
-
-  const markAsRead = (id) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
-  };
-
-  const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-  };
-
-  const handleMenuClick = (action) => {
-    console.log(`Menu action: ${action}`);
-    setShowUserMenu(false);
-    // navigate nếu cần
+  const scheduleClose = () => {
+    clearTimeout(closeTimer.current);
+    closeTimer.current = setTimeout(() => setOpenKey(null), 150);
   };
 
   const handleLogout = () => {
-    console.log("Logout clicked");
     localStorage.removeItem("accessToken");
     localStorage.removeItem("userInfo");
     clearPermissions();
-    setShowUserMenu(false);
     navigate("/login");
   };
 
-  const updateDateTime = () => {
-    const now = new Date();
-    setCurrentDate(now.toLocaleDateString("vi-VN"));
-    setCurrentTime(
-      now.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
-    );
-  };
-
-  useEffect(() => {
-    updateDateTime();
-    const interval = setInterval(updateDateTime, 1000);
-
-    const handleClickOutside = (event) => {
-      if (!event.target.closest(".relative")) {
-        setShowNotifications(false);
-        setShowUserMenu(false);
-      }
-    };
-    document.addEventListener("click", handleClickOutside);
-
-    return () => {
-      clearInterval(interval);
-      document.removeEventListener("click", handleClickOutside);
-    };
-  }, []);
+  const openModule = modules.find((m) => m.key === openKey);
 
   return (
-    <header className="h-[70px] bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-8 shadow-md sticky top-0 z-10">
-      {/* Search */}
-      {/* <div className="relative w-48 md:w-60 lg:w-72">
-        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-base pointer-events-none">
-          🔍
-        </div>
-        <input
-          type="text"
-          placeholder="Tìm kiếm..."
-          className="w-full py-2.5 pl-10 pr-3 border border-gray-200 rounded-lg text-sm bg-gray-50 transition-all duration-200 focus:outline-none focus:border-indigo-500 focus:ring-3 focus:ring-indigo-500/15 focus:bg-white"
-        />
-      </div> */}
+    <header
+      ref={rootRef}
+      className="fixed top-0 left-0 right-0 z-50 flex items-center px-3 lg:px-4"
+      style={{ height: 40, background: "var(--color-header-bg)" }}
+      onMouseLeave={scheduleClose}
+    >
+      <button className="lg:hidden text-white mr-2 p-1" onClick={onToggleSidebar} aria-label="Mở menu">
+        <Icon.Menu />
+      </button>
+      <button className="text-white font-extrabold text-lg tracking-wide mr-6" onClick={() => navigate(DEFAULT_ROUTE)}>
+        HRM
+      </button>
 
-      <div className="flex items-center gap-3 md:gap-5 ml-auto">
-        {/* Notifications */}
-        {/* <div className="relative">
-          <button
-            onClick={toggleNotifications}
-            className="relative w-10 h-10 flex items-center justify-center rounded-full transition-colors duration-200 hover:bg-gray-100"
-          >
-            <span className="text-xl">🔔</span>
-            {unreadNotifications > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-xs font-bold w-[1.125rem] h-[1.125rem] rounded-full flex items-center justify-center border-2 border-white">
-                {unreadNotifications}
-              </span>
-            )}
-          </button>
+      <nav className="flex h-full items-stretch overflow-x-auto">
+        {modules.map((m) => {
+          const isCurrent = current?.module.key === m.key;
+          const isOpen = openKey === m.key;
+          return (
+            <button
+              key={m.key}
+              className="flex items-center gap-1 px-4 text-[13px] font-semibold uppercase whitespace-nowrap transition-colors"
+              style={
+                isCurrent || isOpen
+                  ? { background: "#fff", color: "var(--color-primary)" }
+                  : { color: "#fff" }
+              }
+              onMouseEnter={() => openMenu(m.key)}
+              onClick={() => (isOpen ? setOpenKey(null) : openMenu(m.key))}
+              aria-expanded={isOpen}
+            >
+              {m.label}
+              <Icon.ChevronDown />
+            </button>
+          );
+        })}
+      </nav>
 
-          {showNotifications && (
-            <div className="absolute top-12 right-0 md:-right-2 w-72 md:w-80 bg-white rounded-xl shadow-xl z-50 overflow-hidden">
-              <div className="px-4 py-3 flex justify-between items-center border-b border-gray-200">
-                <h3 className="text-base font-semibold text-gray-800 m-0">
-                  Thông báo
-                </h3>
-                <button
-                  onClick={markAllAsRead}
-                  className="text-xs text-indigo-500 hover:text-indigo-600 transition-colors"
-                >
-                  Đánh dấu đã đọc
-                </button>
-              </div>
-
-              <div className="max-h-80 overflow-y-auto">
-                {notifications.map((notification) => (
-                  <div
-                    key={notification.id}
-                    onClick={() => markAsRead(notification.id)}
-                    className={`px-4 py-3 border-b border-gray-100 flex items-center justify-between transition-colors duration-200 cursor-pointer hover:bg-gray-50 ${
-                      !notification.read
-                        ? "bg-blue-50 hover:bg-blue-100"
-                        : ""
-                    }`}
-                  >
-                    <div className="flex-1">
-                      <div className="font-semibold text-gray-800 mb-1 text-sm">
-                        {notification.title}
-                      </div>
-                      <div className="text-gray-600 text-xs mb-1">
-                        {notification.message}
-                      </div>
-                      <div className="text-gray-400 text-xs">
-                        {notification.time}
-                      </div>
-                    </div>
-                    {!notification.read && (
-                      <div className="w-2 h-2 bg-indigo-500 rounded-full ml-3"></div>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              <div className="px-3 py-3 text-center border-t border-gray-200">
-                <button className="text-sm font-medium text-indigo-500 hover:text-indigo-600 transition-colors">
-                  Xem tất cả
-                </button>
-              </div>
+      <div className="ml-auto relative">
+        <button
+          className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
+          style={{ background: "#dbe4ff", color: "var(--color-header-bg)" }}
+          onClick={() => {
+            setUserOpen((v) => !v);
+            setOpenKey(null);
+          }}
+          title={fullName}
+        >
+          {initials || <Icon.User width="18" height="18" />}
+        </button>
+        {userOpen && (
+          <div className="absolute right-0 top-10 w-64 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-100">
+              <div className="font-semibold text-sm text-gray-900">{fullName || "Tài khoản"}</div>
+              {user.Email && <div className="text-xs text-gray-500 truncate">{user.Email}</div>}
+              {user.Department && <div className="text-xs text-gray-500 truncate">{user.Department}</div>}
             </div>
-          )}
-        </div> */}
-
-        {/* User Menu */}
-        <div className="relative">
-          <button
-            onClick={toggleUserMenu}
-            className="flex items-center gap-2 md:gap-3 px-2 py-1.5 rounded-2xl transition-colors duration-200 hover:bg-gray-100"
-          >
-            <div className="w-10 h-10 flex items-center justify-center rounded-full border border-gray-400 bg-white text-gray-700">
-              {/* Avatar icon */}
-              <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="8" r="4" strokeWidth="1.5"/><path strokeWidth="1.5" d="M4 20c0-2.5 3.5-4 8-4s8 1.5 8 4"/></svg>
-            </div>
-            <div className="flex flex-col items-start ml-2">
-              <span className="text-xs text-gray-500 leading-none">Xin chào,</span>
-              <span className="text-base font-bold text-gray-800 leading-none">{fullName}</span>
-            </div>
-            <span className="text-xs text-gray-500 ml-2">▼</span>
-          </button>
-
-          {showUserMenu && (
-            <div className="absolute top-12 right-0 w-60 bg-white rounded-xl shadow-xl z-50 overflow-hidden">
-              {/* <div className="py-2">
-                {userMenuItems.map((menuItem) => (
-                  <button
-                    key={menuItem.label}
-                    onClick={() => handleMenuClick(menuItem.action)}
-                    className="w-full px-4 py-2.5 flex items-center gap-3 text-left transition-colors duration-200 hover:bg-gray-100"
-                  >
-                    <span className="text-base">{menuItem.icon}</span>
-                    <span className="text-sm">{menuItem.label}</span>
-                  </button>
-                ))}
-              </div> */}
-
-              <div className="h-px bg-gray-200"></div>
-
-              <button
-                onClick={handleLogout}
-                className="w-full px-4 py-2.5 flex items-center gap-3 text-left text-red-500 transition-colors duration-200 hover:bg-red-50"
-              >
-                <span className="text-base">🚪</span>
-                <span className="text-sm">Đăng xuất</span>
-              </button>
-            </div>
-          )}
-        </div>
+            <button
+              onClick={handleLogout}
+              className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50"
+            >
+              Đăng xuất
+            </button>
+          </div>
+        )}
       </div>
+
+      {openModule && (
+        <div
+          className="absolute left-3 right-3 lg:left-4 lg:right-4 bg-white rounded-xl shadow-2xl border border-gray-100 p-6"
+          style={{ top: 40 }}
+          onMouseEnter={() => openMenu(openModule.key)}
+        >
+          <div className="grid gap-8" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(220px, 1fr))` }}>
+            {openModule.groups.map((g) => (
+              <div key={g.label}>
+                <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-3">{g.label}</div>
+                <div className="flex flex-col gap-1">
+                  {g.items.map((item) => (
+                    <button
+                      key={item.path}
+                      className="flex items-center gap-3 px-2 py-2 rounded-lg text-sm text-gray-800 hover:bg-[var(--color-primary-soft)] text-left"
+                      onClick={() => navigate(item.path)}
+                    >
+                      <span
+                        className="w-6 h-6 rounded-md flex items-center justify-center shrink-0"
+                        style={{ background: "#3b82f6" }}
+                      >
+                        <span className="w-2.5 h-2.5 rounded-sm border-2 border-white" />
+                      </span>
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </header>
   );
 }

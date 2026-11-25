@@ -42,6 +42,8 @@ import RoleManagement from "../pages/account/RoleManagement.jsx";
 import UserManagement from "../pages/account/UserManagement.jsx";
 import UserPermissionManagement from "../pages/account/UserPermissionManagement.jsx";
 import ProtectedRoute from "../components/auth/ProtectedRoute.jsx";
+import ApprovalFlowList from "../pages/approvalFlow/ApprovalFlowList.jsx";
+import ApprovalFlowForm from "../pages/approvalFlow/ApprovalFlowForm.jsx";
 import { routePermissions } from "../constants/menuConfig";
 
 // Chặn truy cập trang theo quyền khai báo trong menuConfig (path không khai báo => chỉ cần đăng nhập)
@@ -115,6 +117,10 @@ export default function AppRoutes() {
         <Route path="role-management" element={guard("role-management", <RoleManagement />)} />
         <Route path="user-management" element={guard("user-management", <UserManagement />)} />
         <Route path="user-permission-management" element={guard("user-permission-management", <UserPermissionManagement />)} />
+        {/* Cấu hình luồng duyệt mới (Spec HRM UI v1 §5) */}
+        <Route path="quan-tri/luong-duyet" element={guard("quan-tri/luong-duyet", <ApprovalFlowList />)} />
+        <Route path="quan-tri/luong-duyet/moi" element={guard("quan-tri/luong-duyet/moi", <ApprovalFlowForm />)} />
+        <Route path="quan-tri/luong-duyet/:id" element={guard("quan-tri/luong-duyet/:id", <ApprovalFlowForm />)} />
         {/* catch-all route for "Not Found" */}
         {/* <Route path="*" element={<NotFound />} /> */}
       </Route>
